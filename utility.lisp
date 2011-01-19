@@ -109,8 +109,8 @@
         for j across b
         sum (* i j)))
 
-(defconst skew3d-factor (/ 3.0))
-(defconst unskew3d-factor (/ 6.0))
+(defparameter skew3d-factor (/ 3.0))
+(defparameter unskew3d-factor (/ 6.0))
 
 ;;; Skews from unilateral simplexes to cubes
 (defun skew3d-vector (v)
@@ -121,6 +121,6 @@
 ;;; Skews from cubes to unilateral simplexes
 (defun unskew3d-vector (v)
   (declare (type (vector fixnum) v))
-  (let ((s (/ (loop for i across v sum i) unskew3d-factor)))
+  (let ((s (* (loop for i across v sum i) unskew3d-factor)))
     (map '(vector float) (lambda (i) (- i s)) v)))
 
