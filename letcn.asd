@@ -1,0 +1,18 @@
+;;;; -*- Mode: Lisp -*-
+
+(defsystem :letcn
+  :depends-on (:cl-opengl :cl-glut)
+  :components ((:file "package")
+               (:file "utility" :depends-on ("package"))
+               (:file "platonic-solids" :depends-on ("package"))
+               (:file "space" :depends-on ("package"))
+               (:file "scene" :depends-on ("package"))
+               (:file "hyperboloid" :depends-on ("utility"))
+               (:file "fuzzy-sphere" :depends-on ("utility" "space"))
+               (:file "simplex-noise" :depends-on ("utility"))
+               (:file "lattice" :depends-on ("simplex-noise"))
+               (:file "init" :depends-on ("platonic-solids"
+                                          "fuzzy-sphere"
+                                          "hyperboloid"
+                                          "lattice"
+                                          "scene"))))
