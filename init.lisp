@@ -32,13 +32,6 @@
   (setf (slot-value window 'camera)
         (make-instance 'camera :position #(0.0 0.0 -20.0))))
 
-(defun draw-triangle-list (tri-list)
-  (gl:with-primitives :triangles
-    (dolist (triangle tri-list)
-      (dolist (vertex triangle)
-        (apply #'gl:normal vertex)
-        (apply #'gl:vertex vertex)))))
-
 (defun toggle-blend ()
   (if *blend*
     (progn
