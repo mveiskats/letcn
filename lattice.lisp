@@ -12,14 +12,19 @@
     #(2 0 1)
     #(2 1 0)))
 
+;;; Corner coordinates of cube that has been unskewed
 (defparameter simplex-offsets 
-  (let ((offsets (make-array '(2 2 2))))
-    (dotimes (x 2)
-      (dotimes (y 2)
-        (dotimes (z 2)
-          (setf (aref offsets x y z)
-                ;(unskew3d)
-                nil))))
+  (let ((offsets (make-array '(2 2 2 3) :element-type 'float)))
+    (dotimes (i 2)
+      (dotimes (j 2)
+        (dotimes (k 2)
+          (let* ((s (* unskew3d-factor (+ i j k)))
+                 (x (- i s))
+                 (y (- j s))
+                 (z (- k s)))
+            (setf (aref offsets i j k 0) x
+                  (aref offsets i j k 1) y
+                  (aref offsets i j k 2) z)))))
     offsets))
 
 ;;; base - base vertex
@@ -57,10 +62,17 @@
                             (unskew3d-vector c2)
                             (unskew3d-vector c3))))
               (setf (aref lattice-values x y z i)
-                    (if (< 0.0 (noise3d-octaves (/ (aref v 0) 10)
-                                                (/ (aref v 1) 10)
-                                                (/ (aref v 2) 10)
-                                                2 0.25))
+                    (if (< (let* ((w/2 (/ w 2))
+                                  (vx (- (aref v 0) w/2))
+                                  (vy (- (aref v 1) w/2))
+                                  (vz (- (aref v 2) w/2)))
+                             (- (+ (* vx vx) (* vy vy) (* vz vz))
+                                (* w/2 w/2)
+                                -1.0))
+                           (* 10 (noise3d-octaves (/ (aref v 0) 10)
+                                                  (/ (aref v 1) 10)
+                                                  (/ (aref v 2) 10)
+                                                  3 0.25)))
                         1 0))))))))
     (make-instance 'lattice :lattice-values lattice-values)))
 
