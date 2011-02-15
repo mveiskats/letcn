@@ -31,13 +31,7 @@
                                       (> (cam-dist s1) (cam-dist s2))))))
 
     (dolist (obj scene)
-      (draw obj))
-
-    ;; (gl:with-primitives :points
-    ;;   (loop for i from -5 to 5 by 0.2
-    ;;         do (loop for j from -5 to 5 by 0.2
-    ;;                  do (gl:vertex i j (noise3d (make-vector (list i j 0)))))))
-    ))
+      (draw obj))))
 
 (defun rotate-camera (camera dx dy)
   (with-slots (rotation) camera
