@@ -4,7 +4,7 @@
 (defclass lattice (3d-object)
   ((lattice-values :initarg :lattice-values)))
 
-(defparameter travel-orders
+(defparameter *travel-orders*
   #(#(0 1 2)
     #(0 2 1)
     #(1 0 2)
@@ -13,7 +13,7 @@
     #(2 1 0)))
 
 ;;; Corner coordinates of cube that has been unskewed
-(defparameter simplex-offsets 
+(defparameter *simplex-offsets*
   (let ((offsets (make-array '(2 2 2 3) :element-type 'float)))
     (dotimes (i 2)
       (dotimes (j 2)
@@ -30,7 +30,7 @@
 ;;; base - base vertex
 ;;; i - travel order index
 (defun simplex-vertices (base i)
-  (let ((order (aref travel-orders i))
+  (let ((order (aref *travel-orders* i))
         (v (make-array 3 :element-type 'fixnum :initial-element 0))) 
     (cons (unskew3d-vector (map '(vector fixnum) #'+ base v))
           (loop for a across order
@@ -43,7 +43,7 @@
       (dotimes (y w)
         (dotimes (z w)
           (dotimes (i 6)
-            (let* ((o (aref travel-orders i))
+            (let* ((o (aref *travel-orders* i))
                    ;; let there be corners
                    (c0 (make-array 3 :element-type 'fixnum
                                    :initial-contents (list x y z)))
