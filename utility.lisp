@@ -109,6 +109,18 @@
         for j across b
         sum (* i j)))
 
+;;; Cross product of two vectors.
+(defun cross-product (a b)
+  (declare (type (vector float 3)))
+  (make-array 3
+              :element-type 'float
+              :initial-contents (list (- (* (aref a 1) (aref b 2))
+                                         (* (aref a 2) (aref b 1)))
+                                      (- (* (aref a 2) (aref b 0))
+                                         (* (aref a 0) (aref b 2)))
+                                      (- (* (aref a 0) (aref b 1))
+                                         (* (aref a 1) (aref b 0))))))
+
 (defparameter skew3d-factor (/ 3.0))
 (defparameter unskew3d-factor (/ 6.0))
 
