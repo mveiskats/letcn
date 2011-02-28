@@ -74,7 +74,7 @@
             *old-t* current-t))
 
     (gl:clear :color-buffer :depth-buffer)
-    (gl:light :light0 :position #(0.5 0.5 0.5 1.0))
+    (gl:light :light0 :position #(10.0 10.0 10.0 1.0))
     (gl:enable :lighting :light0 :depth-test :color-material)
     (gl:disable :cull-face)
     (gl:blend-func :src-alpha :one)
