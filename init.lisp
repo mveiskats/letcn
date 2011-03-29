@@ -13,7 +13,7 @@
 (defparameter *old-t* nil)
 (defparameter *delta-t* nil)
 
-(defvar *mouse-sensitivity* 0.0002) ;; Pixel to radian ratio
+(defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
 
 (defclass letcn-window (glut:window)
@@ -74,7 +74,7 @@
             *old-t* current-t))
 
     (gl:clear :color-buffer :depth-buffer)
-    (gl:light :light0 :position #(10.0 10.0 10.0 1.0))
+    (gl:light :light0 :position #(-10.0 10.0 10.0 1.0))
     (gl:enable :lighting :light0 :depth-test :color-material)
     (gl:disable :cull-face)
     (gl:blend-func :src-alpha :one)
