@@ -4,6 +4,7 @@
   :depends-on (:cl-opengl :cl-glut)
   :components ((:file "package")
                (:file "utility" :depends-on ("package"))
+               (:file "matrix" :depends-on ("package"))
                (:file "platonic-solids" :depends-on ("package"))
                (:file "space" :depends-on ("package"))
                (:file "scene" :depends-on ("package"))
