@@ -5,17 +5,19 @@
    (rotation :initform identity-matrix :initarg :rotation)))
 
 (defun make-scene ()
-  (let ((hv (hyperboloid-vertices 1 1))
-        (scene nil))
-    (dotimes (i (array-dimension hv 0))
-      (let ((s (make-fuzzy-sphere 0.3 500)))
-        (setf (slot-value s 'position)
-              (list (aref hv i 0)
-                    (aref hv i 1)
-                    (aref hv i 2)))
-        (push s scene)))
-    scene)
-  (list (make-lattice 10)))
+  ;; (let ((hv (hyperboloid-vertices 1 1))
+  ;;       (scene nil))
+  ;;   (dotimes (i (array-dimension hv 0))
+  ;;     (let ((s (make-fuzzy-sphere 0.3 500)))
+  ;;       (setf (slot-value s 'position)
+  ;;             (list (aref hv i 0)
+  ;;                   (aref hv i 1)
+  ;;                   (aref hv i 2)))
+  ;;       (push s scene)))
+  ;;   scene)
+  (gl:with-new-list (1 :compile)
+    (draw (make-lattice 32)))
+  nil)
 
 (defun draw-scene (scene camera)
   (with-slots (position rotation) camera
@@ -25,13 +27,15 @@
                   (aref position 1)
                   (aref position 2))
     
-    (setf scene
-          (flet ((cam-dist (s) (distance position (slot-value s 'position))))
-            (sort (copy-list scene) (lambda (s1 s2)
-                                      (> (cam-dist s1) (cam-dist s2))))))
+    ;; (setf scene
+    ;;       (flet ((cam-dist (s) (distance position (slot-value s 'position))))
+    ;;         (sort (copy-list scene) (lambda (s1 s2)
+    ;;                                   (> (cam-dist s1) (cam-dist s2))))))
 
-    (dolist (obj scene)
-      (draw obj))))
+    ;; (dolist (obj scene)
+    ;;   (draw obj))
+
+    (gl:call-list 1)))
 
 (defun rotate-camera (camera dx dy)
   (with-slots (rotation) camera
