@@ -16,7 +16,11 @@
   ;;       (push s scene)))
   ;;   scene)
   (gl:with-new-list (1 :compile)
-    (draw (make-lattice 32)))
+    (gl:enable :cull-face)
+    (gl:front-face :ccw)
+    (gl:cull-face :back)
+    (gl:color 0.3 0.7 0.3)
+    (draw-honeycomb (make-honeycomb 32)))
   nil)
 
 (defun draw-scene (scene camera)

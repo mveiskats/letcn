@@ -67,39 +67,35 @@
   (setf *mouselook* (not *mouselook*)))
 
 (defmethod glut:display ((window letcn-window))
-  (block draw
-    (let ((current-t (get-internal-real-time)))
-      (unless *old-t* (setf *old-t* current-t))
-      (setf *delta-t* (- current-t *old-t*)
-            *old-t* current-t))
+  (let ((current-t (get-internal-real-time)))
+    (unless *old-t* (setf *old-t* current-t))
+    (setf *delta-t* (- current-t *old-t*)
+          *old-t* current-t))
 
-    (gl:clear :color-buffer :depth-buffer)
-    (gl:light :light0 :position #(-10.0 10.0 10.0 1.0))
-    (gl:enable :lighting :light0 :depth-test :color-material)
-    (gl:disable :cull-face)
-    (gl:blend-func :src-alpha :one)
+  (gl:clear :color-buffer :depth-buffer)
+  (gl:light :light0 :position #(-10.0 10.0 10.0 1.0))
+  (gl:enable :lighting :light0 :depth-test :color-material)
+  (gl:disable :cull-face)
+  (gl:blend-func :src-alpha :one)
 
-    (with-slots (scene camera) window
-      (restart-case (draw-scene scene camera)
-                    (quit-gracefully ()
-                      (glut:destroy-current-window)
-                      (return-from draw)))
-      (let (move-directions)
-        (when *forward-pressed* (push #(0.0 0.0 1.0) move-directions))
-        (when *back-pressed* (push #(0.0 0.0 -1.0) move-directions))
-        (when *left-pressed* (push #(1.0 0.0 0.0) move-directions))
-        (when *right-pressed* (push #(-1.0 0.0 0.0) move-directions))
-        (when move-directions
-          (move-camera camera
-                       (map 'vector
-                            (lambda (a)
-                              (* a *move-speed*
-                                 (/ *delta-t* internal-time-units-per-second)))
-                            (apply #'map `(vector ,#'+ . ,move-directions)))))))
+  (with-slots (scene camera) window
+    (draw-scene scene camera)
+    (let (move-directions)
+      (when *forward-pressed* (push #(0.0 0.0 1.0) move-directions))
+      (when *back-pressed* (push #(0.0 0.0 -1.0) move-directions))
+      (when *left-pressed* (push #(1.0 0.0 0.0) move-directions))
+      (when *right-pressed* (push #(-1.0 0.0 0.0) move-directions))
+      (when move-directions
+        (move-camera camera
+                     (map 'vector
+                          (lambda (a)
+                            (* a *move-speed*
+                               (/ *delta-t* internal-time-units-per-second)))
+                          (apply #'map `(vector ,#'+ . ,move-directions)))))))
 
     (glut:swap-buffers)
     (glut:post-redisplay)
-    (count-fps)))
+    (count-fps))
 
 (defmethod glut:mouse ((window letcn-window) button state x y)
   (case button
@@ -151,4 +147,7 @@
   (gl:matrix-mode :modelview))
 
 (defun start ()
-  (glut:display-window (make-instance 'letcn-window)))
+  (restart-case
+   (glut:display-window (make-instance 'letcn-window))
+   (quit-gracefully ()
+     (glut:destroy-current-window))))

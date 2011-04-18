@@ -16,7 +16,7 @@
     #(1 2 0)
     #(1 0 2)))
 
-;;; Corner coordinates of unskewed cube
+;;; Corner coordinates of unskewed "cube"
 (defparameter *cube-corners*
   (let ((corners (make-array '(2 2 2) :initial-element nil)))
     (dotimes (i 2)
