@@ -1,5 +1,12 @@
 (in-package :letcn)
 
+;;; Converts from spherical coordinates to cartesian
+(defun spherical2cartesian (a b radius)
+  (let* ((x (* radius (cos a) (sin b)))
+         (y (* radius (sin a) (sin b)))
+         (z (* radius (cos b))))
+    (list x y z)))
+
 (defun make-tetrahedron (radius)
   (let* ((2/3pi (coerce (* 2/3 pi) 'single-float))
          (dihedral-angle (acos 1/3))
