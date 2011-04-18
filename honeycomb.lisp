@@ -56,7 +56,7 @@
                    (22 18 11 10 17 21) ;; bottom-left-back
                    (1 5 10 11 6 2)     ;; bottom-left-front
                    )))
-      (let* ((b (expt 1/3 1/3))
+      (let* ((b (sqrt 1/3))
              (-b (- b))
              (normals `(( 0.0  0.0  1.0) ;; front
                         ( 0.0  1.0  0.0) ;; top
