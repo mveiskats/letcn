@@ -27,16 +27,24 @@
 (defun normalize-angle (angle)
   (mod angle 2pi))
 
-;;; Returns length of a vector
-(defun vector-length (v)
+;;; Length of a vector squared
+(defun vector-length-squared (v)
   (let ((x (aref v 0))
         (y (aref v 1))
         (z (aref v 2)))
-    (sqrt (+ (* x x) (* y y) (* z z)))))
+    (+ (* x x) (* y y) (* z z))))
 
-;;; Returns distance between two points
+;;; Distance between two points squared
+(defun distance-squared (p1 p2)
+  (vector-length-squared (vector- p1 p2)))
+
+;;; Length of a vector
+(defun vector-length (v)
+  (sqrt (vector-length-squared v)))
+
+;;; Distance between two points
 (defun distance (p1 p2)
-  (vector-length (map 'vector #'- p1 p2)))
+  (vector-length (vector- p1 p2)))
 
 ;;; Makes parallel vector with length of 1
 (defun normalize-vector (v)
