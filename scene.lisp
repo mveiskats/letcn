@@ -41,11 +41,9 @@
     ;; (dolist (obj scene)
     ;;   (draw obj))
 
-    (gl:polygon-mode :front :line)
-    (let* ((hl (find-closest-hit #(2.0 3.5 2.0) #(1.0 2.0 -10.0) scene)))
+    (let* ((hl (find-closest-hit position (vector+ position (matrix-product rotation #(0.0 0.0 -5.0 0.0))) scene)))
       (unless (eq hl nil)
         (draw-highlight hl)))
-    (gl:polygon-mode :front :fill)
     (gl:enable :polygon-offset-fill)
     (gl:polygon-offset 1.0 1.0)
     (gl:call-list 1)
