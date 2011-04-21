@@ -15,13 +15,15 @@
   ;;                   (aref hv i 2)))
   ;;       (push s scene)))
   ;;   scene)
-  (gl:with-new-list (1 :compile)
-    (gl:enable :cull-face)
-    (gl:front-face :ccw)
-    (gl:cull-face :back)
-    (gl:color 0.3 0.7 0.3)
-    (draw-honeycomb (make-honeycomb 32)))
-  nil)
+
+  (let ((scene (make-honeycomb 4)))
+    (gl:with-new-list (1 :compile)
+      (gl:enable :cull-face)
+      (gl:front-face :ccw)
+      (gl:cull-face :back)
+      (gl:color 0.3 0.7 0.3)
+      (draw scene))
+    scene))
 
 (defun draw-scene (scene camera)
   (with-slots (position rotation) camera
@@ -39,7 +41,15 @@
     ;; (dolist (obj scene)
     ;;   (draw obj))
 
-    (gl:call-list 1)))
+    (gl:polygon-mode :front :line)
+    (let* ((hl (find-closest-hit #(2.0 3.5 2.0) #(1.0 2.0 -10.0) scene)))
+      (unless (eq hl nil)
+        (draw-highlight hl)))
+    (gl:polygon-mode :front :fill)
+    (gl:enable :polygon-offset-fill)
+    (gl:polygon-offset 1.0 1.0)
+    (gl:call-list 1)
+    (gl:disable :polygon-offset-fill)))
 
 (defun rotate-camera (camera dx dy)
   (with-slots (rotation) camera

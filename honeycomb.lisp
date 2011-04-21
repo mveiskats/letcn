@@ -1,32 +1,10 @@
 (in-package :letcn)
 
-(defun cell-pos (x y z)
-  (values (+ (* x 0.5) (* z 0.5))
-          (+ (* x 0.5) (* y 1.0) (* z 0.5))
-          (+ (* x 0.5) (* z -0.5))))
+(defparameter *troct-radius*
+  (sqrt (+ (* 0.25 0.25) (* 0.5 0.5))))
 
-(defun make-honeycomb (size)
-  (let ((result (make-array (list size size size)
-                            :element-type 'bit
-                            :initial-element 0)))
-    (dotimes (i size)
-      (dotimes (j size)
-        (dotimes (k size)
-          (multiple-value-bind (x y z)
-              (cell-pos i j k)
-            (if (> 0 (* 10 (noise3d-octaves (/ x 10) (/ y 10) (/ z 10)
-                                            3 0.25)))
-                (setf (aref result i j k) 1))))))
-    result))
-
-(defun draw-honeycomb (hc)
-  (dotimes (i (array-dimension hc 0))
-    (dotimes (j (array-dimension hc 1))
-      (dotimes (k (array-dimension hc 2))
-        (unless (zerop (aref hc i j k))
-          (gl:with-pushed-matrix
-            (multiple-value-call #'gl:translate (cell-pos i j k))
-            (draw-troct)))))))
+(defclass honeycomb (3d-object)
+  ((cell-values :initarg :cell-values)))
 
 ;;; Draw truncated octahedron
 (defun draw-troct ()
@@ -79,3 +57,60 @@
                         (apply #'gl:normal n)
                         (loop for v in f
                               do (apply #'gl:vertex (nth v vertices)))))))))
+
+(defun cell-pos (x y z)
+  (values (+ (* x 0.5) (* z 0.5))
+          (+ (* x 0.5) (* y 1.0) (* z 0.5))
+          (+ (* x 0.5) (* z -0.5))))
+
+(defun make-honeycomb (size)
+  (let ((result (make-array (list size size size)
+                            :element-type 'bit
+                            :initial-element 0)))
+    (dotimes (i size)
+      (dotimes (j size)
+        (dotimes (k size)
+          (multiple-value-bind (x y z)
+              (cell-pos i j k)
+            (if (> 0 (* 10 (noise3d-octaves (/ x 10) (/ y 10) (/ z 10)
+                                            3 0.25)))
+                (setf (aref result i j k) 1))))))
+    (make-instance 'honeycomb :cell-values result)))
+
+(defmethod draw ((hc honeycomb))
+  (with-slots (cell-values) hc
+    (dotimes (i (array-dimension cell-values 0))
+      (dotimes (j (array-dimension cell-values 1))
+        (dotimes (k (array-dimension cell-values 2))
+          (unless (zerop (aref cell-values i j k))
+            (gl:with-pushed-matrix
+              (multiple-value-call #'gl:translate (cell-pos i j k))
+              (draw-troct))))))))
+
+(defun find-closest-hit (a b hc)
+  (gl:color 0.0 0.0 1.0)
+  (gl:with-primitives :lines
+    (gl:vertex (aref a 0) (aref a 1) (aref a 2))
+    (gl:vertex (aref b 0) (aref b 1) (aref b 2)))
+  (let ((closest nil)
+        closest-ds)
+    (with-slots (cell-values) hc
+      (dotimes (i (array-dimension cell-values 0))
+        (dotimes (j (array-dimension cell-values 1))
+          (dotimes (k (array-dimension cell-values 2))
+            (when (not (zerop (aref cell-values i j k)))
+              (let* ((center (multiple-value-call #'make-vector
+                                                  (cell-pos i j k)))
+                     (center-ds (distance-squared a center)))
+                (when (and (or (eq closest nil)
+                               (< center-ds closest-ds))
+                           (line-sphere-intersect? a b center *troct-radius*))
+                  (setf closest center
+                        closest-ds center-ds))))))))
+    closest))
+
+(defun draw-highlight (c)
+  (gl:color 0.5 0.0 0.0)
+  (gl:with-pushed-matrix
+    (gl:translate (aref c 0) (aref c 1) (aref c 2))
+    (draw-troct)))
