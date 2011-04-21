@@ -29,9 +29,9 @@
   (with-slots (position rotation) camera
     (gl:load-identity)
     (gl:mult-matrix rotation)
-    (gl:translate (aref position 0)
-                  (aref position 1)
-                  (aref position 2))
+    (gl:translate (- (aref position 0))
+                  (- (aref position 1))
+                  (- (aref position 2)))
     
     ;; (setf scene
     ;;       (flet ((cam-dist (s) (distance position (slot-value s 'position))))

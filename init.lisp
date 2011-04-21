@@ -30,7 +30,7 @@
   (gl:load-identity)
   (setf (slot-value window 'scene) (make-scene))
   (setf (slot-value window 'camera)
-        (make-instance 'camera :position #(0.0 0.0 -20.0))))
+        (make-instance 'camera :position #(0.0 0.0 20.0))))
 
 (defun toggle-blend ()
   (if *blend*
@@ -81,10 +81,10 @@
   (with-slots (scene camera) window
     (draw-scene scene camera)
     (let (move-directions)
-      (when *forward-pressed* (push #(0.0 0.0 1.0) move-directions))
-      (when *back-pressed* (push #(0.0 0.0 -1.0) move-directions))
-      (when *left-pressed* (push #(1.0 0.0 0.0) move-directions))
-      (when *right-pressed* (push #(-1.0 0.0 0.0) move-directions))
+      (when *forward-pressed* (push #(0.0 0.0 -1.0) move-directions))
+      (when *back-pressed* (push #(0.0 0.0 1.0) move-directions))
+      (when *left-pressed* (push #(-1.0 0.0 0.0) move-directions))
+      (when *right-pressed* (push #(1.0 0.0 0.0) move-directions))
       (when move-directions
         (move-camera camera
                      (map 'vector
