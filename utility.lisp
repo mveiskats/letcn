@@ -15,6 +15,9 @@
 (defun vector- (v1 v2 &optional (vector-type 'simple-vector))
   (map vector-type #'- v1 v2))
 
+(defun vector* (v1 a &optional (vector-type 'simple-vector))
+  (map vector-type (lambda (b) (* b a)) v1))
+
 (defun draw-triangle-list (tri-list)
   (declare (sequence tri-list))
   (gl:with-primitives :triangles
