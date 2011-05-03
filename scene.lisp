@@ -16,7 +16,7 @@
   ;;       (push s scene)))
   ;;   scene)
 
-  (let ((scene (make-honeycomb 4)))
+  (let ((scene (make-honeycomb 32)))
     (gl:with-new-list (1 :compile)
       (gl:enable :cull-face)
       (gl:front-face :ccw)
