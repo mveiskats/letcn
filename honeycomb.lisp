@@ -6,58 +6,51 @@
 (defclass honeycomb (3d-object)
   ((cell-values :initarg :cell-values)))
 
-;;; Draw truncated octahedron
-(defun draw-troct ()
+;;; There must be a way to generate vertices and faces algorithmically
+;;; Answer probably lies within combinatorics (see permutohedron)
+
+(defparameter *troct-vertices*
+  ;; ordered in five slices of different z, starting from x=0, going ccw
   (let* ((a 0.25)
          (-a (- a))
          (2a (* a 2))
-         (-2a (- 2a))
-         ;; five slices of different z, starting from x=0, going ccw
-         (vertices `((0.0 ,a ,2a) (,-a 0.0 ,2a) (0.0 ,-a ,2a) (,a 0.0 ,2a)
-                     (0.0 ,2a ,a) (,-2a 0.0 ,a) (0.0 ,-2a ,a) (,2a 0.0 ,a)
-                     (,-a ,2a 0.0) (,-2a ,a 0.0) (,-2a ,-a 0.0) (,-a ,-2a 0.0) (,a ,-2a 0.0) (,2a ,-a 0.0) (,2a ,a 0.0) (,a ,2a 0.0)
-                     (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
-                     (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a))))
-    (let (;; x = right, y = top, z = front/back
-          (faces '((0 1 2 3)     ;; front
-                   (4 15 16 8)   ;; top
-                   (5 9 17 10)   ;; left
-                   (6 11 18 12)  ;; bottom
-                   (7 13 19 14)  ;; right
-                   (20 23 22 21) ;; back
-                   (0 3 7 14 15 4)     ;; right-top-front
-                   (20 16 15 14 19 23) ;; right-top-back
-                   (21 17 9 8 16 20)   ;; left-top-back
-                   (0 4 8 9 5 1)       ;; left-top-front
-                   (2 6 12 13 7 3)     ;; bottom-right-front
-                   (23 19 13 12 18 22) ;; bottom-right-back
-                   (22 18 11 10 17 21) ;; bottom-left-back
-                   (1 5 10 11 6 2)     ;; bottom-left-front
-                   )))
-      (let* ((b (sqrt 1/3))
-             (-b (- b))
-             (normals `(( 0.0  0.0  1.0) ;; front
-                        ( 0.0  1.0  0.0) ;; top
-                        (-1.0  0.0  0.0) ;; left
-                        ( 0.0 -1.0  0.0) ;; bottom
-                        ( 1.0  0.0  0.0) ;; right
-                        ( 0.0  0.0  1.0) ;; back
-                        ( ,b  ,b  ,b) ;; right-top-front
-                        ( ,b  ,b ,-b) ;; right-top-back
-                        (,-b  ,b ,-b) ;; left-top-back
-                        (,-b  ,b  ,b) ;; left-top-front
-                        ( ,b ,-b  ,b) ;; right-bottom-front
-                        ( ,b ,-b ,-b) ;; right-bottom-back
-                        (,-b ,-b ,-b) ;; left-bottom-back
-                        (,-b ,-b  ,b) ;; left-bottom-front
-                        )))
-             (loop for f in faces
-                   for n in normals
-                   do (gl:with-primitives :polygon
-                        (apply #'gl:normal n)
-                        (loop for v in f
-                              do (apply #'gl:vertex (nth v vertices)))))))))
+         (-2a (- 2a)))
+    (make-array 24 :initial-contents
+      `((0.0 ,a ,2a) (,-a 0.0 ,2a) (0.0 ,-a ,2a) (,a 0.0 ,2a)
+        (0.0 ,2a ,a) (,-2a 0.0 ,a) (0.0 ,-2a ,a) (,2a 0.0 ,a)
+        (,-a ,2a 0.0) (,-2a ,a 0.0) (,-2a ,-a 0.0) (,-a ,-2a 0.0) (,a ,-2a 0.0) (,2a ,-a 0.0) (,2a ,a 0.0) (,a ,2a 0.0)
+        (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
+        (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a)))))
 
+(defparameter *troct-faces*
+  ;; x = right, y = top, z = front/back
+  (make-array 14 :initial-contents
+    '((0 1 2 3)     ;; front
+      (4 15 16 8)   ;; top
+      (5 9 17 10)   ;; left
+      (6 11 18 12)  ;; bottom
+      (7 13 19 14)  ;; right
+      (20 23 22 21) ;; back
+      (0 3 7 14 15 4)     ;; right-top-front
+      (20 16 15 14 19 23) ;; right-top-back
+      (21 17 9 8 16 20)   ;; left-top-back
+      (0 4 8 9 5 1)       ;; left-top-front
+      (2 6 12 13 7 3)     ;; bottom-right-front
+      (23 19 13 12 18 22) ;; bottom-right-back
+      (22 18 11 10 17 21) ;; bottom-left-back
+      (1 5 10 11 6 2))))   ;; bottom-left-front
+
+(defparameter *troct-normals*
+  (map 'vector (lambda (f)
+                 (let ((v1 (aref *troct-vertices* (first f)))
+                       (v2 (aref *troct-vertices* (second f)))
+                       (v3 (aref *troct-vertices* (third f))))
+                   (normalize-vector (cross-product (vector- v2 v1)
+                                                    (vector- v3 v2)))))
+       *troct-faces*))
+
+;;; Helper methods to translate between world position
+;;; and grid coordinates of cell
 (let* ((g2p #2A((0.5 0.0 0.5)
                 (0.5 1.0 0.5)
                 (0.5 0.0 -0.5)))
@@ -66,6 +59,27 @@
     (matrix-product g2p g))
   (defun pos-to-grid (p)
     (map 'vector #'truncate (matrix-product p2g p))))
+
+;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
+(defparameter *troct-neighbours*
+  (flet ((vertex-sum (face)
+           (apply #'mapcar #'+
+                  (mapcar (lambda (v) (aref *troct-vertices* v)) face))))
+    (map 'vector
+         (lambda (f) (pos-to-grid (vector* (vertex-sum f) (/ 2 (length f)))))
+         *troct-faces*)))
+
+;;; Draw truncated octahedron
+(defun draw-troct (&optional face-test)
+  (loop for i from 0 upto (length *troct-faces*)
+        for f across *troct-faces*
+        for n across *troct-normals*
+        do (when (or (eq face-test nil)
+                     (funcall face-test i))
+             (gl:with-primitives :polygon
+               (gl:normal (aref n 0) (aref n 1) (aref n 2))
+               (dolist (v f)
+                 (apply #'gl:vertex (aref *troct-vertices* v)))))))
 
 (defun make-honeycomb (size)
   (let ((result (make-array (list size size size)
@@ -91,7 +105,14 @@
             (let ((p (grid-to-pos (make-vector i j k))))
               (gl:with-pushed-matrix
                 (gl:translate (aref p 0) (aref p 1) (aref p 2))
-                (draw-troct)))))))))
+                (draw-troct
+                   (lambda (face)
+                     (let* ((neighbour (aref *troct-neighbours* face))
+                            (ii (+ i (aref neighbour 0)))
+                            (jj (+ j (aref neighbour 1)))
+                            (kk (+ k (aref neighbour 2))))
+                       (or (not (array-in-bounds-p cell-values ii jj kk))
+                           (zerop (aref cell-values ii jj kk))))))))))))))
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
 ;;; Each cell is shared by exactly 2 cells of the honeycomb.
@@ -135,9 +156,7 @@
                  (i (aref cell 0))
                  (j (aref cell 1))
                  (k (aref cell 2)))
-            (when (and (< -1 i (array-dimension cell-values 0))
-                       (< -1 j (array-dimension cell-values 1))
-                       (< -1 k (array-dimension cell-values 2))
+            (when (and (array-in-bounds-p cell-values i j k) 
                        (not (zerop (aref cell-values i j k)))
                        (line-sphere-intersect? a b pos *troct-radius*))
               (return-from stepper pos))))))))
