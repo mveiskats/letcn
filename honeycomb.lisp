@@ -69,17 +69,13 @@
          (lambda (f) (pos-to-grid (vector* (vertex-sum f) (/ 2 (length f)))))
          *troct-faces*)))
 
-;;; Draw truncated octahedron
-(defun draw-troct (&optional face-test)
-  (loop for i from 0 upto (length *troct-faces*)
-        for f across *troct-faces*
-        for n across *troct-normals*
-        do (when (or (eq face-test nil)
-                     (funcall face-test i))
-             (gl:with-primitives :polygon
-               (gl:normal (aref n 0) (aref n 1) (aref n 2))
-               (dolist (v f)
-                 (apply #'gl:vertex (aref *troct-vertices* v)))))))
+(defun draw-troct-face (idx)
+  (let ((face (aref *troct-faces* idx))
+        (normal (aref *troct-normals* idx)))
+    (gl:with-primitives :polygon
+      (gl:normal (aref normal 0) (aref normal 1) (aref normal 2))
+      (dolist (v face)
+        (apply #'gl:vertex (aref *troct-vertices* v))))))
 
 (defun make-honeycomb (size)
   (let ((result (make-array (list size size size)
@@ -102,17 +98,17 @@
       (dotimes (j (array-dimension cell-values 1))
         (dotimes (k (array-dimension cell-values 2))
           (unless (zerop (aref cell-values i j k))
-            (let ((p (grid-to-pos (make-vector i j k))))
+            (let ((center (grid-to-pos (make-vector i j k))))
               (gl:with-pushed-matrix
-                (gl:translate (aref p 0) (aref p 1) (aref p 2))
-                (draw-troct
-                   (lambda (face)
-                     (let* ((neighbour (aref *troct-neighbours* face))
-                            (ii (+ i (aref neighbour 0)))
-                            (jj (+ j (aref neighbour 1)))
-                            (kk (+ k (aref neighbour 2))))
-                       (or (not (array-in-bounds-p cell-values ii jj kk))
-                           (zerop (aref cell-values ii jj kk))))))))))))))
+                (gl:translate (aref center 0) (aref center 1) (aref center 2))
+                (dotimes (idx (length *troct-faces*))
+                  (let* ((neighbour (aref *troct-neighbours* idx))
+                         (ii (+ i (aref neighbour 0)))
+                         (jj (+ j (aref neighbour 1)))
+                         (kk (+ k (aref neighbour 2))))
+                    (when (or (not (array-in-bounds-p cell-values ii jj kk))
+                              (zerop (aref cell-values ii jj kk)))
+                      (draw-troct-face idx))))))))))))
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
 ;;; Each cell is shared by exactly 2 cells of the honeycomb.
@@ -146,23 +142,56 @@
     (loop while buffer
           do (pop-cell)))))
 
-(defun find-closest-hit (a b hc)
-  (block stepper 
+;;; Finds if line segment start-end intersects with troct centered on pos.
+;;; Returns index of face closest to a or nil if there is no intersection
+(defun line-troct-intersection (start end pos)
+  (when (line-sphere-intersect? start end pos *troct-radius*)
+    (let ((local-start (vector- start pos))
+          (local-end (vector- end pos)))
+      (block iteration
+        (dotimes (i 14)
+          ;; dont need backfacing polygons
+          (when (and (> 0 (dot-product (vector- local-end local-start)
+                                       (aref *troct-normals* i)))
+                     (let* ((face (aref *troct-faces* i))
+                            (v0 (aref *troct-vertices* (first face)))
+                            (v1 (aref *troct-vertices* (second face)))
+                            (v2 (aref *troct-vertices* (third face))))
+                       (multiple-value-bind (p u v)
+                           (line-plane-intersection local-start local-end
+                                                    v1 v0 v2)
+                         (and (not (eq p nil))
+                              (<= 0 p 1)
+                              (if (eq (length face) 4)
+                                ;; square face
+                                (and (<= 0 u 1)
+                                     (<= 0 v 1))
+                                ;; hexagon face
+                                (and (<= 0 u 2)
+                                     (<= 0 v 2)
+                                     (<= (1- v) u (1+ v))))))))
+            (return-from iteration i)))))))
+
+;;; In honeycomb hc, find closest cell and the face being hit
+;;; by line segment start-end
+(defun find-closest-hit (start end hc)
+  (block stepper
     (with-slots (cell-values) hc
-      (rasterize-honeycomb a b
+      (rasterize-honeycomb start end
         (lambda (x y z)
           (let* ((pos (make-vector x y z))
                  (cell (pos-to-grid pos))
                  (i (aref cell 0))
                  (j (aref cell 1))
                  (k (aref cell 2)))
-            (when (and (array-in-bounds-p cell-values i j k) 
-                       (not (zerop (aref cell-values i j k)))
-                       (line-sphere-intersect? a b pos *troct-radius*))
-              (return-from stepper pos))))))))
+            (let (face)
+              (when (and (array-in-bounds-p cell-values i j k) 
+                         (not (zerop (aref cell-values i j k)))
+                         (setf face (line-troct-intersection start end pos)))
+                (return-from stepper (values pos face))))))))))
 
-(defun draw-highlight (c)
+(defun draw-highlight (center idx)
   (gl:color 0.5 0.0 0.0)
   (gl:with-pushed-matrix
-    (gl:translate (aref c 0) (aref c 1) (aref c 2))
-    (draw-troct)))
+    (gl:translate (aref center 0) (aref center 1) (aref center 2))
+    (draw-troct-face idx)))

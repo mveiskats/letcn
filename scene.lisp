@@ -41,9 +41,13 @@
     ;; (dolist (obj scene)
     ;;   (draw obj))
 
-    (let* ((hl (find-closest-hit position (vector+ position (matrix*vector rotation #(0.0 0.0 -5.0 0.0))) scene)))
-      (unless (eq hl nil)
-        (draw-highlight hl)))
+    (multiple-value-bind (center face)
+        (find-closest-hit position
+                          (vector+ position (matrix*vector rotation
+                                                           #(0.0 0.0 -5.0 0.0)))
+                          scene)
+      (unless (eq center nil)
+        (draw-highlight center face)))
     (gl:enable :polygon-offset-fill)
     (gl:polygon-offset 1.0 1.0)
     (gl:call-list 1)
