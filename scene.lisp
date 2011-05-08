@@ -41,7 +41,7 @@
     ;; (dolist (obj scene)
     ;;   (draw obj))
 
-    (let* ((hl (find-closest-hit position (vector+ position (matrix-product rotation #(0.0 0.0 -5.0 0.0))) scene)))
+    (let* ((hl (find-closest-hit position (vector+ position (matrix*vector rotation #(0.0 0.0 -5.0 0.0))) scene)))
       (unless (eq hl nil)
         (draw-highlight hl)))
     (gl:enable :polygon-offset-fill)
@@ -53,4 +53,4 @@
   (with-slots (rotation) camera
     (let ((rot-x (rotation-matrix #(0.0 1.0 0.0) dx))
           (rot-y (rotation-matrix #(1.0 0.0 0.0) dy)))
-      (setf rotation (matrix-product (matrix-product rotation rot-x) rot-y)))))
+      (setf rotation (matrix*matrix (matrix*matrix rotation rot-x) rot-y)))))

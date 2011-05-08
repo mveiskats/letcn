@@ -56,9 +56,9 @@
                 (0.5 0.0 -0.5)))
        (p2g (invert-matrix g2p)))
   (defun grid-to-pos (g)
-    (matrix-product g2p g))
+    (matrix*vector g2p g))
   (defun pos-to-grid (p)
-    (map 'vector #'truncate (matrix-product p2g p))))
+    (map 'vector #'truncate (matrix*vector p2g p))))
 
 ;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
 (defparameter *troct-neighbours*

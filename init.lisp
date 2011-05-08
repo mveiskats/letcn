@@ -116,7 +116,7 @@
 (defun move-camera (camera direction)
   (with-slots (position rotation) camera
     (setf position (map 'vector #'+
-                        (matrix-product rotation direction)
+                        (matrix*vector rotation direction)
                         position))))
 
 (defmethod glut:keyboard ((window letcn-window) key x y)
