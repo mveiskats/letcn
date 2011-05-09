@@ -87,3 +87,10 @@
   (let ((s (* (loop for i across v sum i) unskew3d-factor)))
     (map '(vector float) (lambda (i) (- i s)) v)))
 
+;;; Traverses array by nested dotimes loops
+(defmacro doarray (var-list arr &rest body)
+  (labels ((dodimension (left-vars dimension)
+             `(dotimes (,(car left-vars) (array-dimension ,arr ,dimension)) .
+                ,(if (eq (cdr left-vars) nil) body
+                   (list (dodimension (cdr left-vars) (1+ dimension)))))))
+    (dodimension var-list 0)))

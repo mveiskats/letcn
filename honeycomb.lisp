@@ -81,34 +81,30 @@
   (let ((result (make-array (list size size size)
                             :element-type 'bit
                             :initial-element 0)))
-    (dotimes (i size)
-      (dotimes (j size)
-        (dotimes (k size)
-          (let ((p (grid-to-pos (make-vector i j k))))
-            (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
-                                            (/ (aref p 1) 10)
-                                            (/ (aref p 2) 10)
-                                            3 0.25)))
-                (setf (aref result i j k) 1))))))
+    (doarray (i j k) result
+      (let ((p (grid-to-pos (make-vector i j k))))
+        (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
+                                        (/ (aref p 1) 10)
+                                        (/ (aref p 2) 10)
+                                        3 0.25)))
+            (setf (aref result i j k) 1))))
     (make-instance 'honeycomb :cell-values result)))
 
 (defmethod draw ((hc honeycomb))
   (with-slots (cell-values) hc
-    (dotimes (i (array-dimension cell-values 0))
-      (dotimes (j (array-dimension cell-values 1))
-        (dotimes (k (array-dimension cell-values 2))
-          (unless (zerop (aref cell-values i j k))
-            (let ((center (grid-to-pos (make-vector i j k))))
-              (gl:with-pushed-matrix
-                (gl:translate (aref center 0) (aref center 1) (aref center 2))
-                (dotimes (idx (length *troct-faces*))
-                  (let* ((neighbour (aref *troct-neighbours* idx))
-                         (ii (+ i (aref neighbour 0)))
-                         (jj (+ j (aref neighbour 1)))
-                         (kk (+ k (aref neighbour 2))))
-                    (when (or (not (array-in-bounds-p cell-values ii jj kk))
-                              (zerop (aref cell-values ii jj kk)))
-                      (draw-troct-face idx))))))))))))
+    (doarray (i j k) cell-values
+      (unless (zerop (aref cell-values i j k))
+        (let ((center (grid-to-pos (make-vector i j k))))
+          (gl:with-pushed-matrix
+           (gl:translate (aref center 0) (aref center 1) (aref center 2))
+           (dotimes (idx (length *troct-faces*))
+             (let* ((neighbour (aref *troct-neighbours* idx))
+                    (ii (+ i (aref neighbour 0)))
+                    (jj (+ j (aref neighbour 1)))
+                    (kk (+ k (aref neighbour 2))))
+               (when (or (not (array-in-bounds-p cell-values ii jj kk))
+                         (zerop (aref cell-values ii jj kk)))
+                 (draw-troct-face idx))))))))))
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
 ;;; Each cell is shared by exactly 2 cells of the honeycomb.
