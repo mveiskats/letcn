@@ -69,6 +69,13 @@
          (lambda (f) (pos-to-grid (vector* (vertex-sum f) (/ 2 (length f)))))
          *troct-faces*)))
 
+;;; Determines indices of a neighbour cell
+(defun neighbour-cell (i j k face)
+  (let ((neighbour (aref *troct-neighbours* face)))
+    (values (+ i (aref neighbour 0))
+            (+ j (aref neighbour 1))
+            (+ k (aref neighbour 2)))))
+
 (defun draw-troct-face (idx)
   (let ((face (aref *troct-faces* idx))
         (normal (aref *troct-normals* idx)))
@@ -98,10 +105,7 @@
           (gl:with-pushed-matrix
            (gl:translate (aref center 0) (aref center 1) (aref center 2))
            (dotimes (idx (length *troct-faces*))
-             (let* ((neighbour (aref *troct-neighbours* idx))
-                    (ii (+ i (aref neighbour 0)))
-                    (jj (+ j (aref neighbour 1)))
-                    (kk (+ k (aref neighbour 2))))
+             (multiple-value-bind (ii jj kk) (neighbour-cell i j k idx)
                (when (or (not (array-in-bounds-p cell-values ii jj kk))
                          (zerop (aref cell-values ii jj kk)))
                  (draw-troct-face idx))))))))))
@@ -191,3 +195,20 @@
   (gl:with-pushed-matrix
     (gl:translate (aref center 0) (aref center 1) (aref center 2))
     (draw-troct-face idx)))
+
+(defun remove-cell (hc center)
+  (let ((cell (pos-to-grid center))
+        (cv (slot-value hc 'cell-values)))
+    (setf (aref cv (aref cell 0) (aref cell 1) (aref cell 2)) 0
+          *scene-modified* t)))
+
+(defun add-cell (hc center face)
+  (let ((cell (pos-to-grid center))
+        (cv (slot-value hc 'cell-values)))
+    (multiple-value-bind (i j k) (neighbour-cell (aref cell 0)
+                                                 (aref cell 1)
+                                                 (aref cell 2)
+                                                 face)
+      (when (array-in-bounds-p cv i j k)
+        (setf (aref cv i j k) 1
+              *scene-modified* t)))))

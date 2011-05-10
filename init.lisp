@@ -13,6 +13,9 @@
 (defparameter *old-t* nil)
 (defparameter *delta-t* nil)
 
+(defparameter *highlight* nil)
+(defparameter *scene-modified* t)
+
 (defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
 
@@ -105,8 +108,17 @@
 
 (defmethod glut:mouse ((window letcn-window) button state x y)
   (case button
-    (:left-button (setf *left-mouse-down* (eq state :down)))
-    (:righ-button (setf *right-mouse-down* (eq state :down)))))
+    (:left-button (setf *left-mouse-down* (eq state :down))
+                  (when (and (eq state :down)
+                             (not (eq *highlight* nil)))
+                    (remove-cell (slot-value window 'scene)
+                                 (car *highlight*))))
+    (:right-button (setf *right-mouse-down* (eq state :down))
+                   (when (and (eq state :down)
+                              (not (eq *highlight* nil)))
+                     (add-cell (slot-value window 'scene)
+                               (car *highlight*)
+                               (cdr *highlight*))))))
 
 (defmethod glut:passive-motion ((window letcn-window) x y)
   (let ((mid-x (round (/ (glut:width window) 2)))

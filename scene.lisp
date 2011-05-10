@@ -16,14 +16,7 @@
   ;;       (push s scene)))
   ;;   scene)
 
-  (let ((scene (make-honeycomb 32)))
-    (gl:with-new-list (1 :compile)
-      (gl:enable :cull-face)
-      (gl:front-face :ccw)
-      (gl:cull-face :back)
-      (gl:color 0.3 0.7 0.3)
-      (draw scene))
-    scene))
+  (make-honeycomb 32))
 
 (defun draw-scene (scene camera)
   (with-slots (position rotation) camera
@@ -41,17 +34,30 @@
     ;; (dolist (obj scene)
     ;;   (draw obj))
 
+    (when *scene-modified*
+      (gl:with-new-list (1 :compile)
+        (gl:enable :cull-face)
+        (gl:front-face :ccw)
+        (gl:cull-face :back)
+        (gl:color 0.3 0.7 0.3)
+        (draw scene))
+      (setf *scene-modified* nil))
+
+    (gl:enable :polygon-offset-fill)
+    (gl:polygon-offset 1.0 1.0)
+    (gl:call-list 1)
+    (gl:disable :polygon-offset-fill)
+
     (multiple-value-bind (center face)
         (find-closest-hit position
                           (vector+ position (matrix*vector rotation
                                                            #(0.0 0.0 -5.0 0.0)))
                           scene)
-      (unless (eq center nil)
-        (draw-highlight center face)))
-    (gl:enable :polygon-offset-fill)
-    (gl:polygon-offset 1.0 1.0)
-    (gl:call-list 1)
-    (gl:disable :polygon-offset-fill)))
+      (if (eq center nil)
+        (setf *highlight* nil)
+        (progn
+          (setf *highlight* (cons center face))
+          (draw-highlight center face))))))
 
 (defun rotate-camera (camera dx dy)
   (with-slots (rotation) camera
