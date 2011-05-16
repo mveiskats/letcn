@@ -86,7 +86,7 @@
 
 (defun make-honeycomb (size)
   (let ((result (make-array (list size size size)
-                            :element-type 'bit
+                            :element-type 'integer
                             :initial-element 0)))
     (doarray (i j k) result
       (let ((p (grid-to-pos (make-vector i j k))))
@@ -101,6 +101,10 @@
   (with-slots (cell-values) hc
     (doarray (i j k) cell-values
       (unless (zerop (aref cell-values i j k))
+        (case (aref cell-values i j k)
+          (1 (gl:color 0.7 0.3 0.3))
+          (2 (gl:color 0.3 0.7 0.3))
+          (t (gl:color 0.3 0.3 0.7)))
         (let ((center (grid-to-pos (make-vector i j k))))
           (gl:with-pushed-matrix
            (gl:translate (aref center 0) (aref center 1) (aref center 2))
@@ -202,7 +206,7 @@
     (setf (aref cv (aref cell 0) (aref cell 1) (aref cell 2)) 0
           *scene-modified* t)))
 
-(defun add-cell (hc center face)
+(defun add-cell (hc center face value)
   (let ((cell (pos-to-grid center))
         (cv (slot-value hc 'cell-values)))
     (multiple-value-bind (i j k) (neighbour-cell (aref cell 0)
@@ -210,5 +214,5 @@
                                                  (aref cell 2)
                                                  face)
       (when (array-in-bounds-p cv i j k)
-        (setf (aref cv i j k) 1
+        (setf (aref cv i j k) value
               *scene-modified* t)))))

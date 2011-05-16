@@ -15,6 +15,7 @@
 
 (defparameter *highlight* nil)
 (defparameter *scene-modified* t)
+(defparameter *selected-tool* 1)
 
 (defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
@@ -118,7 +119,8 @@
                               (not (eq *highlight* nil)))
                      (add-cell (slot-value window 'scene)
                                (car *highlight*)
-                               (cdr *highlight*))))))
+                               (cdr *highlight*)
+                               *selected-tool*)))))
 
 (defmethod glut:passive-motion ((window letcn-window) x y)
   (let ((mid-x (round (/ (glut:width window) 2)))
@@ -146,7 +148,10 @@
     (#\w (setf *forward-pressed* t))
     (#\s (setf *back-pressed* t))
     (#\a (setf *left-pressed* t))
-    (#\d (setf *right-pressed* t))))
+    (#\d (setf *right-pressed* t))
+    (#\1 (setf *selected-tool* 1))
+    (#\2 (setf *selected-tool* 2))
+    (#\3 (setf *selected-tool* 3))))
 
 (defmethod glut:keyboard-up ((window letcn-window) key x y)
   (declare (ignore x y))
