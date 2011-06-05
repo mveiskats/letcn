@@ -16,7 +16,7 @@
                (:file "simplex-noise" :depends-on ("utility"))
                (:file "lattice" :depends-on ("simplex-noise"))
                (:file "collision" :depends-on ("utility"))
-               (:file "honeycomb" :depends-on ("package"))
+               (:file "honeycomb" :depends-on ("collision"))
                (:file "init" :depends-on ("platonic-solids"
                                           "fuzzy-sphere"
                                           "hyperboloid"

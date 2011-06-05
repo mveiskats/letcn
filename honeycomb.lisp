@@ -76,6 +76,59 @@
             (+ j (aref neighbour 1))
             (+ k (aref neighbour 2)))))
 
+;;; 3 vectors from which bounding rhombohedron will be generated
+;;; Finds them by going through all vertices and determining which one
+;;; is furthest away from plane [axis-a, axis-b] along axis-c
+;;; TODO: Do this by converting vertices to basis of { axis-a, axis-b, axis-c }
+(defparameter *troct-bounds*
+  (let* ((axis-i (grid-to-pos #(1 0 0)))
+         (axis-j (grid-to-pos #(0 1 0)))
+         (axis-k (grid-to-pos #(0 0 1))))
+    (labels ((max-scale (v1 v2 v3)
+               (loop for vert across *troct-vertices*
+                     maximize (line-plane-intersection vert (vector- vert v1)
+                                                       #(0 0 0) v2 v3)))
+             (get-bounder (v1 v2 v3) (vector* v1 (max-scale v1 v2 v3))))
+      (list (get-bounder axis-i axis-j axis-k)
+            (get-bounder axis-j axis-i axis-k)
+            (get-bounder axis-k axis-i axis-j)))))
+
+;;; Draw a bounding rhombohedron for honeycomb of given size
+(defun draw-honeycomb-bounder (size)
+  (let ((corners (make-array '(2 2 2))))
+    (flet ((flip-vector (v dir) (if (zerop dir) (vector* v -1) v))
+           (min-or-max (a) (if (zerop a) 0 (1- size))))
+      (doarray (i j k) corners
+        (setf (aref corners i j k)
+              (reduce #'vector+
+                      (mapcar #'flip-vector *troct-bounds* (list i j k))
+                      :initial-value (grid-to-pos (map 'vector
+                                                       #'min-or-max
+                                                       (list i j k)))))))
+    (gl:with-primitives :lines
+      (dolist (v *troct-bounds*)
+        (gl:vertex 0.0 0.0 0.0)
+        (gl:vertex (aref v 0) (aref v 1) (aref v 2)))
+      (gl:color 0.0 1.0 0.0)
+      (gl:vertex 0.0 0.0 0.0)
+      (let ((v (reduce #'vector+
+                       *troct-bounds*
+                       :initial-value #(0 0 0))))
+        (gl:vertex (aref v 0) (aref v 1) (aref v 2))))
+
+    ;; These turn out visible even if it seems
+    ;; the visible side should be cw ... aaaaargh
+    (dolist (face '(((0 0 0) (1 0 0) (1 1 0) (0 1 0)) ;xy
+                    ((0 0 1) (0 1 1) (1 1 1) (1 0 1))
+                    ((0 0 0) (0 0 1) (1 0 1) (1 0 0)) ;xz
+                    ((0 1 0) (1 1 0) (1 1 1) (0 1 1))
+                    ((0 0 0) (0 1 0) (0 1 1) (0 0 1)) ;yz
+                    ((1 0 0) (1 0 1) (1 1 1) (1 1 0))))
+      (gl:with-primitives :polygon
+        (dolist (idx face)
+          (let ((v (aref corners (first idx) (second idx) (third idx))))
+            (gl:vertex (aref v 0) (aref v 1) (aref v 2))))))))
+
 (defun draw-troct-face (idx)
   (let ((face (aref *troct-faces* idx))
         (normal (aref *troct-normals* idx)))
