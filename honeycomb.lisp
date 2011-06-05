@@ -105,16 +105,6 @@
                       :initial-value (grid-to-pos (map 'vector
                                                        #'min-or-max
                                                        (list i j k)))))))
-    (gl:with-primitives :lines
-      (dolist (v *troct-bounds*)
-        (gl:vertex 0.0 0.0 0.0)
-        (gl:vertex (aref v 0) (aref v 1) (aref v 2)))
-      (gl:color 0.0 1.0 0.0)
-      (gl:vertex 0.0 0.0 0.0)
-      (let ((v (reduce #'vector+
-                       *troct-bounds*
-                       :initial-value #(0 0 0))))
-        (gl:vertex (aref v 0) (aref v 1) (aref v 2))))
 
     ;; These turn out visible even if it seems
     ;; the visible side should be cw ... aaaaargh
