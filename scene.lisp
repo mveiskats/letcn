@@ -16,7 +16,14 @@
   ;;       (push s scene)))
   ;;   scene)
 
-  (make-honeycomb 32))
+  (setf *honeycomb* (make-honeycomb 32))
+  (setf *hc-octree* (make-hc-node #(0 0 0) 3)))
+
+;; TODO: make a patch for cl-opengl
+(defun get-query-object-uiv (id pname)
+  (cffi:with-foreign-object (result '%gl:uint)
+    (%gl::get-query-object-uiv id pname result)
+    (cffi:mem-ref result '%gl:uint)))
 
 (defun draw-scene (scene camera)
   (with-slots (position rotation) camera
@@ -26,33 +33,13 @@
                   (- (aref position 1))
                   (- (aref position 2)))
     
-    ;; (setf scene
-    ;;       (flet ((cam-dist (s) (distance position (slot-value s 'position))))
-    ;;         (sort (copy-list scene) (lambda (s1 s2)
-    ;;                                   (> (cam-dist s1) (cam-dist s2))))))
-
-    ;; (dolist (obj scene)
-    ;;   (draw obj))
-
-    (when *scene-modified*
-      (gl:with-new-list (1 :compile)
-        (gl:enable :cull-face)
-        (gl:front-face :ccw)
-        (gl:cull-face :back)
-        (gl:color 0.3 0.7 0.3)
-        (draw scene))
-      (setf *scene-modified* nil))
-
-    (gl:enable :polygon-offset-fill)
-    (gl:polygon-offset 1.0 1.0)
-    (gl:call-list 1)
-    (gl:disable :polygon-offset-fill)
+    (draw *hc-octree*)
+    (post-process *hc-octree*)
 
     (multiple-value-bind (center face)
-        (find-closest-hit position
-                          (vector+ position (matrix*vector rotation
-                                                           #(0.0 0.0 -5.0 0.0)))
-                          scene)
+      (find-closest-hit position
+                        (vector+ position
+                                 (matrix*vector rotation #(0.0 0.0 -5.0 0.0))))
       (if (eq center nil)
         (setf *highlight* nil)
         (progn
