@@ -16,9 +16,11 @@
                (:file "simplex-noise" :depends-on ("utility"))
                (:file "lattice" :depends-on ("simplex-noise"))
                (:file "collision" :depends-on ("utility"))
+               (:file "truncated-octahedron" :depends-on ("utility"))
                (:file "honeycomb" :depends-on ("collision"
                                                "space"
-                                               "simplex-noise"))
+                                               "simplex-noise"
+                                               "truncated-octahedron"))
                (:file "init" :depends-on ("platonic-solids"
                                           "fuzzy-sphere"
                                           "hyperboloid"
