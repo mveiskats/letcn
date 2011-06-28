@@ -1,6 +1,6 @@
 (in-package :letcn)
 
-;;; These contain the state honeycomb
+;;; These contain the state of honeycomb
 (defparameter *honeycomb* nil)
 (defparameter *hc-octree* nil)
 

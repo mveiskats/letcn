@@ -1,21 +1,12 @@
 (in-package :letcn)
 
+(defparameter *camera* nil)
+
 (defclass camera ()
   ((position :initform #(0.0 0.0 0.0) :initarg :position)
    (rotation :initform identity-matrix :initarg :rotation)))
 
 (defun make-scene ()
-  ;; (let ((hv (hyperboloid-vertices 1 1))
-  ;;       (scene nil))
-  ;;   (dotimes (i (array-dimension hv 0))
-  ;;     (let ((s (make-fuzzy-sphere 0.3 500)))
-  ;;       (setf (slot-value s 'position)
-  ;;             (list (aref hv i 0)
-  ;;                   (aref hv i 1)
-  ;;                   (aref hv i 2)))
-  ;;       (push s scene)))
-  ;;   scene)
-
   (setf *honeycomb* (make-honeycomb 32))
   (setf *hc-octree* (make-hc-node #(0 0 0) 3)))
 
@@ -25,14 +16,14 @@
     (%gl::get-query-object-uiv id pname result)
     (cffi:mem-ref result '%gl:uint)))
 
-(defun draw-scene (scene camera)
-  (with-slots (position rotation) camera
+(defun draw-scene ()
+  (with-slots (position rotation) *camera*
     (gl:load-identity)
     (gl:mult-matrix rotation)
     (gl:translate (- (aref position 0))
                   (- (aref position 1))
                   (- (aref position 2)))
-    
+
     (draw *hc-octree*)
     (post-process *hc-octree*)
 
@@ -46,8 +37,14 @@
           (setf *highlight* (cons center face))
           (draw-highlight center face))))))
 
-(defun rotate-camera (camera dx dy)
-  (with-slots (rotation) camera
+(defun rotate-camera (dx dy)
+  (with-slots (rotation) *camera*
     (let ((rot-x (rotation-matrix #(0.0 1.0 0.0) dx))
           (rot-y (rotation-matrix #(1.0 0.0 0.0) dy)))
       (setf rotation (matrix*matrix (matrix*matrix rotation rot-x) rot-y)))))
+
+(defun move-camera (direction)
+  (with-slots (position rotation) *camera*
+    (setf position (map 'vector #'+
+                        (matrix*vector rotation direction)
+                        position))))

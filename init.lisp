@@ -21,7 +21,7 @@
 (defvar *move-speed* 3)
 
 (defclass letcn-window (glut:window)
-  (scene camera)
+  ()
   (:default-initargs
    :title "OMG, work already!"
    :mode '(:double :rgb)
@@ -32,9 +32,8 @@
   (gl:clear-color 0 0 0 0)
   (gl:matrix-mode :projection)
   (gl:load-identity)
-  (setf (slot-value window 'scene) (make-scene))
-  (setf (slot-value window 'camera)
-        (make-instance 'camera :position #(0.0 0.0 20.0))))
+  (make-scene)
+  (setf *camera* (make-instance 'camera :position #(0.0 0.0 20.0))))
 
 (defun toggle-blend ()
   (if *blend*
@@ -85,20 +84,18 @@
        (gl:disable :cull-face)
        (gl:blend-func :src-alpha :one)
 
-       (with-slots (scene camera) window
-         (draw-scene scene camera)
-         (let (move-directions)
-           (when *forward-pressed* (push #(0.0 0.0 -1.0) move-directions))
-           (when *back-pressed* (push #(0.0 0.0 1.0) move-directions))
-           (when *left-pressed* (push #(-1.0 0.0 0.0) move-directions))
-           (when *right-pressed* (push #(1.0 0.0 0.0) move-directions))
-           (when move-directions
-             (move-camera camera 
-                          (vector* (reduce #'vector+ move-directions
-                                           :initial-value #(0.0 0.0 0.0))
-                                   (* *move-speed*
-                                      (/ *delta-t*
-                                         internal-time-units-per-second)))))))
+       (draw-scene)
+       (let (move-directions)
+         (when *forward-pressed* (push #(0.0 0.0 -1.0) move-directions))
+         (when *back-pressed* (push #(0.0 0.0 1.0) move-directions))
+         (when *left-pressed* (push #(-1.0 0.0 0.0) move-directions))
+         (when *right-pressed* (push #(1.0 0.0 0.0) move-directions))
+         (when move-directions
+           (move-camera (vector* (reduce #'vector+ move-directions
+                                         :initial-value #(0.0 0.0 0.0))
+                                 (* *move-speed*
+                                    (/ *delta-t*
+                                       internal-time-units-per-second))))))
 
        (glut:swap-buffers)
        (glut:post-redisplay)
@@ -127,15 +124,8 @@
       ;; Without this check, glut:warp-pointer would cause endless recursion
       (unless (and (eq x mid-x) (eq y mid-y))
         (glut:warp-pointer mid-x mid-y)
-        (rotate-camera (slot-value window 'camera)
-                       (* (- mid-x x) *mouse-sensitivity*)
+        (rotate-camera (* (- mid-x x) *mouse-sensitivity*)
                        (* (- mid-y y) *mouse-sensitivity*))))))
-
-(defun move-camera (camera direction)
-  (with-slots (position rotation) camera
-    (setf position (map 'vector #'+
-                        (matrix*vector rotation direction)
-                        position))))
 
 (defmethod glut:keyboard ((window letcn-window) key x y)
   (declare (ignore x y))
