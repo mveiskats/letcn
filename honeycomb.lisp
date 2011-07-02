@@ -267,11 +267,27 @@
       ;; give something for cpu to do while it finishes
       (setf samples-visible (get-query-object-uiv query-id :query-result)))))
 
+;;; Draw child nodes in z-order
 (defmethod draw ((node hc-partition))
-  ;; TODO: children should be drawn in correct z-order
-  (with-slots (children) node
-    (doarray (i j k) children
-      (draw (aref children i j k)))))
+  (with-slots (children size) node
+    (let* ((half-size (/ size 2))
+           (distance (vector- (slot-value *camera* 'position)
+                              (vector+ (slot-value *honeycomb* 'position)
+                                       (grid-to-world (make-vector half-size
+                                                                   half-size
+                                                                   half-size)))))
+           (order (sort (make-vector 0 1 2) #'> :key (lambda (a) (abs (aref distance a)))))
+           (backwards (map 'vector (lambda (a) (< 0 a)) distance)))
+      (doarray (i j k) children
+        (let ((coords (make-vector 0 0 0)))
+          ;; TODO: Verify if this is right
+          (setf (aref coords (aref order 0)) (if (aref backwards 0) (- 1 i) i)
+                (aref coords (aref order 1)) (if (aref backwards 1) (- 1 j) j)
+                (aref coords (aref order 2)) (if (aref backwards 2) (- 1 k) k))
+          (draw (aref children
+                      (aref coords 0)
+                      (aref coords 1)
+                      (aref coords 2))))))))
 
 (defmethod post-process ((node hc-partition))
   (with-slots (children samples-visible) node
