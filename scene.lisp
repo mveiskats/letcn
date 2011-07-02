@@ -7,8 +7,7 @@
    (rotation :initform identity-matrix :initarg :rotation)))
 
 (defun make-scene ()
-  (setf *honeycomb* (make-honeycomb 32))
-  (setf *hc-octree* (make-hc-node #(0 0 0) 3)))
+  (setf *honeycomb* (make-honeycomb 64)))
 
 ;; TODO: make a patch for cl-opengl
 (defun get-query-object-uiv (id pname)
@@ -24,18 +23,18 @@
                   (- (aref position 1))
                   (- (aref position 2)))
 
-    (draw *hc-octree*)
-    (post-process *hc-octree*)
+    (draw *honeycomb*)
+    (post-process *honeycomb*)
 
     (multiple-value-bind (center face)
-      (find-closest-hit position
-                        (vector+ position
-                                 (matrix*vector rotation #(0.0 0.0 -5.0 0.0))))
-      (if (eq center nil)
-        (setf *highlight* nil)
-        (progn
-          (setf *highlight* (cons center face))
-          (draw-highlight center face))))))
+       (find-closest-hit position
+                         (vector+ position
+                                  (matrix*vector rotation #(0.0 0.0 -5.0 0.0))))
+       (if (eq center nil)
+         (setf *highlight* nil)
+         (progn
+           (setf *highlight* (cons center face))
+           (draw-highlight center face))))))
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*

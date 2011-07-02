@@ -81,7 +81,8 @@
        (gl:clear :color-buffer :depth-buffer)
        (gl:light :light0 :position #(-10.0 10.0 10.0 1.0))
        (gl:enable :lighting :light0 :depth-test :color-material)
-       (gl:disable :cull-face)
+       (gl:enable :cull-face)
+       (gl:front-face :ccw)
        (gl:blend-func :src-alpha :one)
 
        (draw-scene)

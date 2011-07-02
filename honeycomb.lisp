@@ -2,8 +2,6 @@
 
 ;;; These contain the state of honeycomb
 (defparameter *honeycomb* nil)
-(defparameter *hc-octree* nil)
-
 
 (defconstant +hc-leaf-size+ 4)
 
@@ -51,11 +49,9 @@
             (get-bounder axis-j axis-i axis-k)
             (get-bounder axis-k axis-i axis-j)))))
 
-;;; Draw a bounding rhombohedron for honeycomb of given size
-;;; offset from the specified grid cell
-(defun draw-honeycomb-bounder (grid-offset size)
+(defun compile-bounder (list-id node-height)
   (let ((corners (make-array '(2 2 2)))
-        (world-offset (grid-to-world grid-offset)))
+        (size (node-size node-height)))
     (flet ((flip-vector (v dir) (if (zerop dir) (vector* v -1) v))
            (min-or-max (a) (if (zerop a) 0 (1- size))))
       (doarray (i j k) corners
@@ -68,36 +64,49 @@
 
     ;; These turn out visible even if it seems
     ;; the visible side should be cw ... aaaaargh
-    (dolist (face '(((0 0 0) (1 0 0) (1 1 0) (0 1 0)) ;xy
-                    ((0 0 1) (0 1 1) (1 1 1) (1 0 1))
-                    ((0 0 0) (0 0 1) (1 0 1) (1 0 0)) ;xz
-                    ((0 1 0) (1 1 0) (1 1 1) (0 1 1))
-                    ((0 0 0) (0 1 0) (0 1 1) (0 0 1)) ;yz
-                    ((1 0 0) (1 0 1) (1 1 1) (1 1 0))))
+    (gl:with-new-list (list-id :compile)
+      (dolist (face '(((0 0 0) (1 0 0) (1 1 0) (0 1 0)) ;xy
+                      ((0 0 1) (0 1 1) (1 1 1) (1 0 1))
+                      ((0 0 0) (0 0 1) (1 0 1) (1 0 0)) ;xz
+                      ((0 1 0) (1 1 0) (1 1 1) (0 1 1))
+                      ((0 0 0) (0 1 0) (0 1 1) (0 0 1)) ;yz
+                      ((1 0 0) (1 0 1) (1 1 1) (1 1 0))))
+        (gl:with-primitives :polygon
+          (dolist (idx face)
+            (let ((v (aref corners (first idx) (second idx) (third idx))))
+              (gl:vertex (aref v 0) (aref v 1) (aref v 2)))))))))
 
-      ;; Can't have our bounding boxes showing
-      (gl:color-mask nil nil nil nil)
-      (gl:depth-mask nil)
-      (gl:disable :lighting)
+;;; Draw a bounding rhombohedron for honeycomb of given size
+;;; offset from the specified grid cell
+(defun draw-honeycomb-bounder (grid-offset node-height)
+  (let ((world-offset (grid-to-world grid-offset)))
+    (with-slots (bounders) *honeycomb*
+      (when (eq (aref bounders node-height) nil)
+        (compile-bounder (setf (aref bounders node-height)
+                               (gl:gen-lists 1))
+                         node-height))
 
       (gl:with-pushed-matrix
         (gl:translate (aref world-offset 0)
                       (aref world-offset 1)
                       (aref world-offset 2))
-        (gl:with-primitives :polygon
-          (dolist (idx face)
-            (let ((v (aref corners (first idx) (second idx) (third idx))))
-              (gl:vertex (aref v 0) (aref v 1) (aref v 2))))))
+        ;; Can't have our bounding boxes showing
+        (gl:color-mask nil nil nil nil)
+        (gl:depth-mask nil)
+        (gl:disable :lighting)
 
-      ;; Put things back the way they were
-      (gl:color-mask :true :true :true :true)
-      (gl:depth-mask t)
-      (gl:enable :lighting))))
+        (gl:call-list (aref bounders node-height))
+
+        ;; Put things back the way they were
+        (gl:color-mask :true :true :true :true)
+        (gl:depth-mask t)
+        (gl:enable :lighting)))))
 
 (defun make-honeycomb (size)
   (let ((result (make-array (list size size size)
                             :element-type 'integer
-                            :initial-element 0)))
+                            :initial-element 0))
+        (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
     (doarray (i j k) result
       (let ((p (grid-to-world (make-vector i j k))))
         (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
@@ -105,7 +114,12 @@
                                         (/ (aref p 2) 10)
                                         3 0.25)))
             (setf (aref result i j k) 1))))
-    (make-instance 'honeycomb :cell-values result)))
+
+    (make-instance 'honeycomb
+                   :cell-values result
+                   :octree-root (make-hc-node #(0 0 0) octree-height)
+                   :bounders (make-array (1+ octree-height)
+                                         :initial-element nil))))
 
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
@@ -123,7 +137,7 @@
            (pop-cell ()
              (apply callback (mapcar (lambda (a) (* a 0.5)) (caar buffer)))
              (setf buffer (cdr buffer))))
-    (rasterize (aref start*2 0) (aref start*2 1) (aref start*2 2) 
+    (rasterize (aref start*2 0) (aref start*2 1) (aref start*2 2)
                (aref end*2 0) (aref end*2 1) (aref end*2 2)
       (lambda (i j k)
         (let ((even-cell (list (if (evenp i) i (1+ i))
@@ -204,11 +218,13 @@
 ;;; Morton order (calling it "z-order" will probably be confusing)
 ;;; when referencing child nodes and grid cells
 (defclass honeycomb (3d-object)
-  ((cell-values :initarg :cell-values)))
+  ((cell-values :initarg :cell-values)
+   (octree-root :initarg :octree-root)
+   (bounders :initarg :bounders)))
 
 (defclass hc-node ()
   ((corner :initarg :corner)
-   (size :initarg :size)
+   (height :initarg :height)
    (samples-visible :initform 0)
    (query-id :initform nil)))
 
@@ -218,6 +234,9 @@
 (defclass hc-leaf (hc-node)
   ((list-id :initform nil)))
 
+(defun node-size (height)
+  (* +hc-leaf-size+ (expt 2 height)))
+
 (defun make-hc-node (grid-offset tree-height)
   (if (= tree-height 0)
     (make-hc-leaf grid-offset)
@@ -226,14 +245,13 @@
 (defun make-hc-leaf (grid-offset)
   (make-instance 'hc-leaf
                  :corner grid-offset
-                 :size +hc-leaf-size+))
+                 :height 0))
 
 (defun make-hc-partition (grid-offset tree-height)
-  (let* ((half-size (* +hc-leaf-size+ (expt 2 (1- tree-height))))
-         (size (* half-size 2))
+  (let* ((half-size (node-size (1- tree-height)))
          (result (make-instance 'hc-partition
                                 :corner grid-offset
-                                :size size)))
+                                :height tree-height)))
     (with-slots (children) result
       (doarray (i j k) children
         (setf (aref children i j k)
@@ -245,18 +263,24 @@
 ;;; At the moment just polls the results for visibility queries
 (defgeneric post-process (obj))
 
+(defmethod draw ((hc honeycomb))
+  (draw (slot-value hc 'octree-root)))
+
+(defmethod post-process ((hc honeycomb))
+  (post-process (slot-value hc 'octree-root)))
+
 ;;; Draw given node if it has been visible last frame.
 ;;; If not, draw bounding box instead
 ;;; TODO: should look into making gl:gen-queries return
 ;;; multiple values just like gl:gen-lists does
 (defmethod draw :around ((node hc-node))
-  (with-slots (query-id corner samples-visible) node
+  (with-slots (query-id corner samples-visible height) node
     (if (> samples-visible 0)
       (call-next-method)
       (progn
         (when (eq query-id nil) (setf query-id (car (gl:gen-queries 1))))
         (gl:begin-query :samples-passed query-id)
-        (draw-honeycomb-bounder corner (slot-value node 'size))
+        (draw-honeycomb-bounder corner height)
         (gl:end-query :samples-passed)))))
 
 (defmethod post-process :around ((node hc-node))
@@ -269,8 +293,8 @@
 
 ;;; Draw child nodes in z-order
 (defmethod draw ((node hc-partition))
-  (with-slots (children size) node
-    (let* ((half-size (/ size 2))
+  (with-slots (children height) node
+    (let* ((half-size (node-size (1- height)))
            (distance (vector- (slot-value *camera* 'position)
                               (vector+ (slot-value *honeycomb* 'position)
                                        (grid-to-world (make-vector half-size
