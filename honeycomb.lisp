@@ -17,13 +17,14 @@
 
 ;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
 (defvar +cell-neighbours+
-  (flet ((vertex-sum (face)
-           (apply #'mapcar #'+
-                  (mapcar (lambda (v) (aref +troct-vertices+ v)) face))))
-    (map 'vector
-         (lambda (f) (world-to-grid-int (vector* (vertex-sum f)
-                                                 (/ 2 (length f)))))
-         +troct-faces+)))
+  (labels ((vertex-sum (face)
+             (reduce #'vector+
+                    (mapcar (lambda (v) (aref +troct-vertices+ v)) face)
+                    :initial-value #(0.0 0.0 0.0)))
+           (neighbour-grid-offset (face)
+             (world-to-grid-int (vector* (vertex-sum face)
+                                         (/ 2 (length face))))))
+    (map 'vector #'neighbour-grid-offset +troct-faces+)))
 
 ;;; Determines indices of a neighbour cell
 (defun neighbour-cell (i j k face)
