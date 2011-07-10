@@ -34,21 +34,16 @@
             (+ k (aref neighbour 2)))))
 
 ;;; 3 vectors from which bounding rhombohedron will be generated
-;;; Finds them by going through all vertices and determining which one
-;;; is furthest away from plane [axis-a, axis-b] along axis-c
-;;; TODO: Do this by converting vertices to basis of { axis-a, axis-b, axis-c }
 (defvar +cell-bounds+
-  (let* ((axis-i (grid-to-world #(1 0 0)))
-         (axis-j (grid-to-world #(0 1 0)))
-         (axis-k (grid-to-world #(0 0 1))))
-    (labels ((max-scale (v1 v2 v3)
-               (loop for vert across +troct-vertices+
-                     maximize (line-plane-intersection vert (vector- vert v1)
-                                                       #(0 0 0) v2 v3)))
-             (get-bounder (v1 v2 v3) (vector* v1 (max-scale v1 v2 v3))))
-      (list (get-bounder axis-i axis-j axis-k)
-            (get-bounder axis-j axis-i axis-k)
-            (get-bounder axis-k axis-i axis-j)))))
+  (loop with grid-vert
+        for vert across +troct-vertices+
+        do (setf grid-vert (world-to-grid (apply #'make-vector vert)))
+        maximize (aref grid-vert 0) into max-x
+        maximize (aref grid-vert 1) into max-y
+        maximize (aref grid-vert 2) into max-z
+        finally (return (list (grid-to-world (make-vector max-x 0 0))
+                              (grid-to-world (make-vector 0 max-y 0))
+                              (grid-to-world (make-vector 0 0 max-z))))))
 
 (defun compile-bounder (list-id node-height)
   (let ((corners (make-array '(2 2 2)))
