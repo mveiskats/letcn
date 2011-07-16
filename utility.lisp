@@ -20,11 +20,7 @@
 
 ;;; Distance between two points squared
 (defun distance-squared (p1 p2)
-  (vector-length-squared (map 'vector #'- p1 p2)))
-
-;;; Length of a vector
-(defun vector-length (v)
-  (sqrt (vector-length-squared v)))
+  (vector-length-squared (vec- p1 p2)))
 
 ;;; Distance between two points
 (defun distance (p1 p2)

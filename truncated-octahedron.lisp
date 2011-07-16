@@ -61,7 +61,7 @@
 ;;; Finds if line segment start-end intersects with troct centered on pos.
 ;;; Returns index of face closest to a or nil if there is no intersection
 (defun line-troct-intersection (start end pos)
-  (when (line-sphere-intersect? start end pos +troct-radius+)
+  (when (line-sphere-intersect? start end (coerce-vec pos) +troct-radius+)
     (let ((local-start (vec- start pos))
           (local-end (vec- end pos)))
       (block iteration
