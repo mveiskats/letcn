@@ -75,7 +75,7 @@
 ;;; Draw a bounding rhombohedron for honeycomb of given size
 ;;; offset from the specified grid cell
 (defun draw-honeycomb-bounder (grid-offset node-height)
-  (let ((world-offset (grid-to-world (apply #'vec (map 'list (lambda (a) (coerce a 'single-float)) grid-offset)))))
+  (let ((world-offset (grid-to-world (coerce-vec grid-offset))))
     (with-slots (bounders) *honeycomb*
       (when (eq (aref bounders node-height) nil)
         (compile-bounder (setf (aref bounders node-height)
@@ -104,9 +104,7 @@
                             :initial-element 0))
         (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
     (doarray (i j k) result
-      (let ((p (grid-to-world (vec (coerce i 'single-float)
-                                   (coerce j 'single-float)
-                                   (coerce k 'single-float)))))
+      (let ((p (grid-to-world (coerce-vec (list i j k)))))
         (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
