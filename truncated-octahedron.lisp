@@ -13,11 +13,12 @@
          (2a (* a 2))
          (-2a (- 2a)))
     (make-array 24 :initial-contents
-      `((0.0 ,a ,2a) (,-a 0.0 ,2a) (0.0 ,-a ,2a) (,a 0.0 ,2a)
-        (0.0 ,2a ,a) (,-2a 0.0 ,a) (0.0 ,-2a ,a) (,2a 0.0 ,a)
-        (,-a ,2a 0.0) (,-2a ,a 0.0) (,-2a ,-a 0.0) (,-a ,-2a 0.0) (,a ,-2a 0.0) (,2a ,-a 0.0) (,2a ,a 0.0) (,a ,2a 0.0)
-        (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
-        (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a)))))
+      (mapcar (lambda (v) (apply #'vec v))
+              `((0.0 ,a ,2a) (,-a 0.0 ,2a) (0.0 ,-a ,2a) (,a 0.0 ,2a)
+                (0.0 ,2a ,a) (,-2a 0.0 ,a) (0.0 ,-2a ,a) (,2a 0.0 ,a)
+                (,-a ,2a 0.0) (,-2a ,a 0.0) (,-2a ,-a 0.0) (,-a ,-2a 0.0) (,a ,-2a 0.0) (,2a ,-a 0.0) (,2a ,a 0.0) (,a ,2a 0.0)
+                (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
+                (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a))))))
 
 (defconstant +troct-faces+
   ;; x = right, y = top, z = front/back
@@ -42,8 +43,8 @@
                  (let ((v1 (aref +troct-vertices+ (first f)))
                        (v2 (aref +troct-vertices+ (second f)))
                        (v3 (aref +troct-vertices+ (third f))))
-                   (normalize-vector (cross-product (vector- v2 v1)
-                                                    (vector- v3 v2)))))
+                   (normalize (cross-product (vec- v2 v1)
+                                             (vec- v3 v2)))))
        +troct-faces+))
 
 ;;; Draw single face of truncated octahedron
@@ -53,26 +54,31 @@
     (gl:with-primitives :polygon
       (gl:normal (aref normal 0) (aref normal 1) (aref normal 2))
       (dolist (v face)
-        (apply #'gl:vertex (aref +troct-vertices+ v))))))
+        (gl:vertex (aref (aref +troct-vertices+ v) 0)
+                   (aref (aref +troct-vertices+ v) 1)
+                   (aref (aref +troct-vertices+ v) 2))))))
 
 ;;; Finds if line segment start-end intersects with troct centered on pos.
 ;;; Returns index of face closest to a or nil if there is no intersection
 (defun line-troct-intersection (start end pos)
   (when (line-sphere-intersect? start end pos +troct-radius+)
-    (let ((local-start (vector- start pos))
-          (local-end (vector- end pos)))
+    (let ((local-start (vec- start pos))
+          (local-end (vec- end pos)))
       (block iteration
         (dotimes (i 14)
           ;; dont need backfacing polygons
-          (when (and (> 0 (dot-product (vector- local-end local-start)
+          (when (and (> 0 (dot-product (vec- local-end local-start)
                                        (aref +troct-normals+ i)))
                      (let* ((face (aref +troct-faces+ i))
                             (v0 (aref +troct-vertices+ (first face)))
                             (v1 (aref +troct-vertices+ (second face)))
-                            (v2 (aref +troct-vertices+ (third face))))
-                       (multiple-value-bind (p u v)
-                           (line-plane-intersection local-start local-end
-                                                    v1 v0 v2)
+                            (v2 (aref +troct-vertices+ (third face)))
+                            (inter (line-plane-intersection local-start
+                                                            local-end
+                                                            v1 v0 v2))
+                            (p (aref inter 0))
+                            (u (aref inter 1))
+                            (v (aref inter 2)))
                          (and (not (eq p nil))
                               (<= 0 p 1)
                               (if (eq (length face) 4)
@@ -82,5 +88,5 @@
                                 ;; hexagon face
                                 (and (<= 0 u 2)
                                      (<= 0 v 2)
-                                     (<= (1- v) u (1+ v))))))))
+                                     (<= (1- v) u (1+ v)))))))
             (return-from iteration i)))))))

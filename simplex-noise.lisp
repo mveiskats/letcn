@@ -1,5 +1,8 @@
 (in-package :letcn)
 
+(defvar +skew3d-factor+ (/ 3.0))
+(defvar +unskew3d-factor+ (/ 6.0))
+
 ;;; used to determine pseudorandom gradient in simplex noise
 (defun shuffle (i j k b)
   (declare (integer i j k)
@@ -45,7 +48,7 @@
 (defun interpolation-kernel (x y z i j k)
   (declare (float x y z)
            (fixnum i j k))
-  (let* ((s (* unskew3d-factor (+ i j k)))
+  (let* ((s (* +unskew3d-factor+ (+ i j k)))
          (u (- x (- i s)))
          (v (- y (- j s)))
          (w (- z (- k s)))
@@ -59,7 +62,7 @@
 ;;; Let's make some noise!
 (defun noise3d (x y z)
   (declare (float x y z))
-  (let ((s (* skew3d-factor (+ x y z)))
+  (let ((s (* +skew3d-factor+ (+ x y z)))
         i j k
         u v w)
     (multiple-value-setq (i u) (floor (+ x s)))

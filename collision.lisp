@@ -5,8 +5,8 @@
 ;;; c, r - center and radius of the sphere
 (defun line-sphere-intersect? (a b c r)
   (let* ((r-squared (* r r))
-         (b-a (vector- b a))
-         (c-a (vector- c a))
+         (b-a (vec- b a))
+         (c-a (vec- c a))
          (ac-squared (vector-length-squared c-a)))
     (or (>= r-squared ac-squared)
         (>= r-squared (distance-squared b c))
@@ -23,9 +23,8 @@
 ;;; returns t, u and v or nil if line and plane dont intersect
 ;;; !!! Note to self - do not attempt to bind to t
 (defun line-plane-intersection (l0 l1 p0 p1 p2)
-  (let ((result
-         (matrix*vector (invert-matrix (vectors-to-matrix (vector- l0 l1)
-                                                          (vector- p1 p0)
-                                                          (vector- p2 p0)))
-                        (vector- l0 p0))))
-    (values (aref result 0) (aref result 1) (aref result 2))))
+  (transform-direction (vec- l0 p0)
+                       (inverse-matrix (vectors-to-matrix (vec- l0 l1)
+                                                          (vec- p1 p0)
+                                                          (vec- p2 p0)))))
+

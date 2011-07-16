@@ -7,23 +7,24 @@
 
 ;;; Helper methods to translate between world position
 ;;; and grid coordinates of cell
-(let* ((g2w #2A((0.5 0.0 0.5)
-                (0.5 1.0 0.5)
-                (0.5 0.0 -0.5)))
-       (w2g (invert-matrix g2w)))
-  (defun grid-to-world (g) (matrix*vector g2w g))
-  (defun world-to-grid (w) (matrix*vector w2g w))
+(let* ((g2w (matrix 0.5  0.0  0.5  0.0
+                    0.5  1.0  0.5  0.0
+                    0.5  0.0 -0.5  0.0
+                    0.0  0.0  0.0  1.0))
+       (w2g (inverse-matrix g2w)))
+  (defun grid-to-world (g) (transform-direction g g2w))
+  (defun world-to-grid (w) (transform-direction w w2g))
   (defun world-to-grid-int (w) (map 'vector #'truncate (world-to-grid w))))
 
 ;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
 (defvar +cell-neighbours+
   (labels ((vertex-sum (face)
-             (reduce #'vector+
+             (reduce #'vec+
                     (mapcar (lambda (v) (aref +troct-vertices+ v)) face)
-                    :initial-value #(0.0 0.0 0.0)))
+                    :initial-value (vec 0.0 0.0 0.0)))
            (neighbour-grid-offset (face)
-             (world-to-grid-int (vector* (vertex-sum face)
-                                         (/ 2 (length face))))))
+             (world-to-grid-int (vec* (vertex-sum face)
+                                      (/ 2.0 (length face))))))
     (map 'vector #'neighbour-grid-offset +troct-faces+)))
 
 ;;; Determines indices of a neighbour cell
@@ -37,26 +38,25 @@
 (defvar +cell-bounds+
   (loop with grid-vert
         for vert across +troct-vertices+
-        do (setf grid-vert (world-to-grid (apply #'make-vector vert)))
+        do (setf grid-vert (world-to-grid vert))
         maximize (aref grid-vert 0) into max-x
         maximize (aref grid-vert 1) into max-y
         maximize (aref grid-vert 2) into max-z
-        finally (return (list (grid-to-world (make-vector max-x 0 0))
-                              (grid-to-world (make-vector 0 max-y 0))
-                              (grid-to-world (make-vector 0 0 max-z))))))
+        finally (return (list (grid-to-world (vec max-x 0.0 0.0))
+                              (grid-to-world (vec 0.0 max-y 0.0))
+                              (grid-to-world (vec 0.0 0.0 max-z))))))
 
 (defun compile-bounder (list-id node-height)
   (let ((corners (make-array '(2 2 2)))
         (size (node-size node-height)))
-    (flet ((flip-vector (v dir) (if (zerop dir) (vector* v -1) v))
+    (flet ((flip-vector (v dir) (if (zerop dir) (vec* v -1.0) v))
            (min-or-max (a) (if (zerop a) 0 (1- size))))
       (doarray (i j k) corners
         (setf (aref corners i j k)
-              (reduce #'vector+
+              (reduce #'vec+
                       (mapcar #'flip-vector +cell-bounds+ (list i j k))
-                      :initial-value (grid-to-world (map 'vector
-                                                         #'min-or-max
-                                                         (list i j k)))))))
+                      :initial-value (grid-to-world (coerce-vec (mapcar #'min-or-max
+                                                                        (list i j k))))))))
 
     ;; These turn out visible even if it seems
     ;; the visible side should be cw ... aaaaargh
@@ -75,7 +75,7 @@
 ;;; Draw a bounding rhombohedron for honeycomb of given size
 ;;; offset from the specified grid cell
 (defun draw-honeycomb-bounder (grid-offset node-height)
-  (let ((world-offset (grid-to-world grid-offset)))
+  (let ((world-offset (grid-to-world (apply #'vec (map 'list (lambda (a) (coerce a 'single-float)) grid-offset)))))
     (with-slots (bounders) *honeycomb*
       (when (eq (aref bounders node-height) nil)
         (compile-bounder (setf (aref bounders node-height)
@@ -104,7 +104,9 @@
                             :initial-element 0))
         (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
     (doarray (i j k) result
-      (let ((p (grid-to-world (make-vector i j k))))
+      (let ((p (grid-to-world (vec (coerce i 'single-float)
+                                   (coerce j 'single-float)
+                                   (coerce k 'single-float)))))
         (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
@@ -117,6 +119,68 @@
                    :bounders (make-array (1+ octree-height)
                                          :initial-element nil))))
 
+(defun rasterize (x0 y0 z0 x1 y1 z1 callback)
+  (let ((dx (abs (- x1 x0)))
+        (dy (abs (- y1 y0)))
+        (dz (abs (- z1 z0))))
+    (let ((swap-xy (and (> dy dx) (>= dy dz)))
+          (swap-xz (and (> dz dx) (> dz dy))))
+      ;; Note for optimization - only one of these is true
+      (when swap-xy
+        (rotatef x0 y0)
+        (rotatef x1 y1)
+        (rotatef dx dy))
+      (when swap-xz
+        (rotatef x0 z0)
+        (rotatef x1 z1)
+        (rotatef dx dz))
+      (let* ((step-x (if (> x1 x0) 1 -1))
+             (step-y (if (> y1 y0) 1 -1))
+             (step-z (if (> z1 z0) 1 -1))
+             (x (floor x0))
+             (y (floor y0))
+             (z (floor z0))
+             (dy/dx (/ dy dx))
+             (dz/dx (/ dz dx))
+             (drift-x (if (> x1 x0) (- x0 (floor x0)) (- (ceiling x0) x0)))
+             (drift-y (if (> y1 y0)
+                        (- (- y0 (floor y)) (* dy/dx drift-x))
+                        (- (- (ceiling y0) y0) (* dy/dx drift-x))))
+             (drift-z (if (> z1 z0)
+                        (- (- z0 (floor z)) (* dz/dx drift-x))
+                        (- (- (ceiling z0) z0) (* dz/dx drift-x)))))
+        (labels ((swap-and-callback ()
+                   (let ((xx x) (yy y) (zz z))
+                     (when swap-xz (rotatef xx zz))
+                     (when swap-xy (rotatef xx yy))
+                     (funcall callback xx yy zz)))
+                 (inc-y ()
+                   (incf y step-y)
+                   (unless (= drift-y 1)
+                     (swap-and-callback))
+                   (decf drift-y))
+                 (inc-z ()
+                   (incf z step-z)
+                   (unless (= drift-z 1)
+                     (swap-and-callback))
+                   (decf drift-z)))
+          (loop do (swap-and-callback)
+                do (incf drift-y dy/dx)
+                do (incf drift-z dz/dx)
+                do (if (and (>= drift-y 1) (>= drift-z 1))
+                     ;; Special case - both y and z change in the same step
+                     ;; so we have to determine which one goes first
+                     (if (> (/ (- drift-y 1) dy/dx)
+                            (/ (- drift-z 1) dz/dx))
+                       (progn (inc-y) (inc-z))
+                       (progn (inc-z) (inc-y)))
+                     (if (>= drift-y 1)
+                       (inc-y)
+                       (if (>= drift-z 1)
+                         (inc-z))))
+                do (incf x step-x)
+                while (if (> step-x 0) (< x x1) (> (1+ x) x1))))))))
+
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
 ;;; Each cell is shared by exactly 2 cells of the honeycomb.
@@ -124,8 +188,8 @@
 ;;; same cell twice and to insure they are visited in proper order.
 ;;; This probably is not the most efficient way, but it's good enough.
 (defun rasterize-honeycomb (start end callback)
-  (let ((start*2 (vector* start 2))
-        (end*2 (vector* end 2))
+  (let ((start*2 (vec* start 2.0))
+        (end*2 (vec* end 2.0))
         (buffer nil))
     (flet ((push-cell (c)
              (unless (find-if (lambda (a) (equal (car a) c)) buffer)
@@ -157,7 +221,7 @@
     (with-slots (cell-values) *honeycomb*
       (rasterize-honeycomb start end
         (lambda (x y z)
-          (let* ((pos (make-vector x y z))
+          (let* ((pos (vec x y z))
                  (cell (world-to-grid-int pos))
                  (i (aref cell 0))
                  (j (aref cell 1))
@@ -202,7 +266,7 @@
     (1 (gl:color 0.7 0.3 0.3))
     (2 (gl:color 0.3 0.7 0.3))
     (t (gl:color 0.3 0.3 0.7)))
-  (let ((center (grid-to-world (make-vector i j k))))
+  (let ((center (grid-to-world (coerce-vec (list i j k)))))
     (gl:with-pushed-matrix
       (gl:translate (aref center 0) (aref center 1) (aref center 2))
       (dotimes (idx (length +troct-faces+))
@@ -251,8 +315,11 @@
     (with-slots (children) result
       (doarray (i j k) children
         (setf (aref children i j k)
-              (make-hc-node (vector+ grid-offset
-                                     (vector* (make-vector i j k) half-size))
+              (make-hc-node (map 'vector #'+
+                                 grid-offset
+                                 (list (* i half-size)
+                                       (* j half-size)
+                                       (* k half-size)))
                             (1- tree-height)))))
     result))
 
@@ -290,20 +357,20 @@
 ;;; Draw child nodes in z-order
 (defmethod draw ((node hc-partition))
   (with-slots (children height) node
-    (let* ((half-size (node-size (1- height)))
-           (distance (vector- (slot-value *camera* 'position)
-                              (vector+ (slot-value *honeycomb* 'position)
-                                       (grid-to-world (make-vector half-size
-                                                                   half-size
-                                                                   half-size)))))
-           (order (sort (make-vector 0 1 2) #'> :key (lambda (a) (abs (aref distance a)))))
+    (let* ((half-size (coerce (node-size (1- height)) 'single-float))
+           (distance (vec- (slot-value *camera* 'position)
+                           (vec+ (slot-value *honeycomb* 'position)
+                                 (grid-to-world (vec half-size
+                                                     half-size
+                                                     half-size)))))
+           (order (sort (list 0 1 2) #'> :key (lambda (a) (abs (aref distance a)))))
            (backwards (map 'vector (lambda (a) (< 0 a)) distance)))
       (doarray (i j k) children
-        (let ((coords (make-vector 0 0 0)))
+        (let ((coords (make-array '(3) :initial-element 0)))
           ;; TODO: Verify if this is right
-          (setf (aref coords (aref order 0)) (if (aref backwards 0) (- 1 i) i)
-                (aref coords (aref order 1)) (if (aref backwards 1) (- 1 j) j)
-                (aref coords (aref order 2)) (if (aref backwards 2) (- 1 k) k))
+          (setf (aref coords (car order)) (if (aref backwards 0) (- 1 i) i)
+                (aref coords (cadr order)) (if (aref backwards 1) (- 1 j) j)
+                (aref coords (caddr order)) (if (aref backwards 2) (- 1 k) k))
           (draw (aref children
                       (aref coords 0)
                       (aref coords 1)

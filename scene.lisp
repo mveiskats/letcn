@@ -3,8 +3,8 @@
 (defparameter *camera* nil)
 
 (defclass camera ()
-  ((position :initform #(0.0 0.0 0.0) :initarg :position)
-   (rotation :initform identity-matrix :initarg :rotation)))
+  ((position :initform (vec 0.0 0.0 0.0) :initarg :position)
+   (rotation :initform +identity-matrix+ :initarg :rotation)))
 
 (defun make-scene ()
   (setf *honeycomb* (make-honeycomb 64)))
@@ -27,9 +27,10 @@
     (post-process *honeycomb*)
 
     (multiple-value-bind (center face)
-       (find-closest-hit position
-                         (vector+ position
-                                  (matrix*vector rotation #(0.0 0.0 -5.0 0.0))))
+      (find-closest-hit position
+                        (vec+ position
+                              (transform-direction (vec 0.0 0.0 -5.0)
+                                                   rotation)))
        (if (eq center nil)
          (setf *highlight* nil)
          (progn
@@ -38,12 +39,12 @@
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*
-    (let ((rot-x (rotation-matrix #(0.0 1.0 0.0) dx))
-          (rot-y (rotation-matrix #(1.0 0.0 0.0) dy)))
-      (setf rotation (matrix*matrix (matrix*matrix rotation rot-x) rot-y)))))
+    (let ((rot-x (rotate-around (vec 0.0 1.0 0.0) dx))
+          (rot-y (rotate-around (vec 1.0 0.0 0.0) dy)))
+      (setf rotation (matrix* rot-x rot-y rotation)))))
 
 (defun move-camera (direction)
   (with-slots (position rotation) *camera*
-    (setf position (map 'vector #'+
-                        (matrix*vector rotation direction)
-                        position))))
+    (setf position (vec+ (transform-direction direction
+                                              (inverse-matrix rotation))
+                         position))))

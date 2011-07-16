@@ -33,7 +33,7 @@
   (gl:matrix-mode :projection)
   (gl:load-identity)
   (make-scene)
-  (setf *camera* (make-instance 'camera :position #(0.0 0.0 20.0))))
+  (setf *camera* (make-instance 'camera :position (vec 0.0 0.0 20.0))))
 
 (defun toggle-blend ()
   (if *blend*
@@ -87,16 +87,17 @@
 
        (draw-scene)
        (let (move-directions)
-         (when *forward-pressed* (push #(0.0 0.0 -1.0) move-directions))
-         (when *back-pressed* (push #(0.0 0.0 1.0) move-directions))
-         (when *left-pressed* (push #(-1.0 0.0 0.0) move-directions))
-         (when *right-pressed* (push #(1.0 0.0 0.0) move-directions))
+         (when *forward-pressed* (push (vec 0.0 0.0 -1.0) move-directions))
+         (when *back-pressed* (push (vec 0.0 0.0 1.0) move-directions))
+         (when *left-pressed* (push (vec -1.0 0.0 0.0) move-directions))
+         (when *right-pressed* (push (vec 1.0 0.0 0.0) move-directions))
          (when move-directions
-           (move-camera (vector* (reduce #'vector+ move-directions
-                                         :initial-value #(0.0 0.0 0.0))
-                                 (* *move-speed*
-                                    (/ *delta-t*
-                                       internal-time-units-per-second))))))
+           (move-camera (vec* (reduce #'vec+ move-directions
+                                      :initial-value (vec 0.0 0.0 0.0))
+                              (coerce (* *move-speed*
+                                         (/ *delta-t*
+                                            internal-time-units-per-second))
+                                      'single-float)))))
 
        (glut:swap-buffers)
        (glut:post-redisplay)
@@ -125,8 +126,8 @@
       ;; Without this check, glut:warp-pointer would cause endless recursion
       (unless (and (eq x mid-x) (eq y mid-y))
         (glut:warp-pointer mid-x mid-y)
-        (rotate-camera (* (- mid-x x) *mouse-sensitivity*)
-                       (* (- mid-y y) *mouse-sensitivity*))))))
+        (rotate-camera (* (- x mid-x) *mouse-sensitivity*)
+                       (* (- y mid-y) *mouse-sensitivity*))))))
 
 (defmethod glut:keyboard ((window letcn-window) key x y)
   (declare (ignore x y))
