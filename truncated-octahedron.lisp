@@ -6,7 +6,7 @@
 ;;; There must be a way to generate vertices and faces algorithmically
 ;;; Answer probably lies within combinatorics (see permutohedron)
 
-(defconstant +troct-vertices+
+(defvar +troct-vertices+
   ;; ordered in five slices of different z, starting from x=0, going ccw
   (let* ((a 0.25)
          (-a (- a))
@@ -20,7 +20,7 @@
                 (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
                 (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a))))))
 
-(defconstant +troct-faces+
+(defvar +troct-faces+
   ;; x = right, y = top, z = front/back
   (make-array 14 :initial-contents
     '((0 1 2 3)     ;; front
@@ -38,7 +38,7 @@
       (22 18 11 10 17 21) ;; bottom-left-back
       (1 5 10 11 6 2))))   ;; bottom-left-front
 
-(defconstant +troct-normals+
+(defvar +troct-normals+
   (map 'vector (lambda (f)
                  (let ((v1 (aref +troct-vertices+ (first f)))
                        (v2 (aref +troct-vertices+ (second f)))
