@@ -5,6 +5,8 @@
 
 (defconstant +hc-leaf-size+ 4)
 
+(defvar +lod-distance-squared+ 1024)
+
 ;;; Helper methods to translate between world position
 ;;; and grid coordinates of cell
 (let* ((g2w (matrix 0.5  0.0  0.5  0.0
@@ -260,11 +262,14 @@
       (aref cell-values i j k)
       0)))
 
-(defun draw-cell (i j k)
+(defun emit-cell-color (i j k)
   (case (cell-value i j k)
     (1 (gl:color 0.7 0.3 0.3))
     (2 (gl:color 0.3 0.7 0.3))
-    (t (gl:color 0.3 0.3 0.7)))
+    (t (gl:color 0.3 0.3 0.7))))
+
+(defun draw-cell (i j k)
+  (emit-cell-color i j k)
   (let ((center (grid-to-world (coerce-vec (list i j k)))))
     (gl:with-pushed-matrix
       (gl:translate (aref center 0) (aref center 1) (aref center 2))
@@ -291,7 +296,8 @@
   ((children :initform (make-array '(2 2 2) :initial-element nil))))
 
 (defclass hc-leaf (hc-node)
-  ((list-id :initform nil)))
+  ((detailed-list-id :initform nil)
+   (simple-list-id :initform nil)))
 
 (defun node-size (height)
   (* +hc-leaf-size+ (expt 2 height)))
@@ -353,16 +359,23 @@
       ;; give something for cpu to do while it finishes
       (setf samples-visible (get-query-object-uiv query-id :query-result)))))
 
+;;; FIXME: doesnt take in account honeycomb rotation
+(defun node-position (node)
+  (with-slots (corner height) node
+  (let* ((half-size (node-size (1- height)))
+         (node-midpoint (coerce-vec (list (+ (aref corner 0) half-size)
+                                          (+ (aref corner 1) half-size)
+                                          (+ (aref corner 2) half-size)))))
+    (vec+ (slot-value *honeycomb* 'position)
+          (grid-to-world node-midpoint)))))
+
 ;;; Draw child nodes in z-order
 (defmethod draw ((node hc-partition))
-  (with-slots (children height) node
-    (let* ((half-size (coerce (node-size (1- height)) 'single-float))
-           (distance (vec- (slot-value *camera* 'position)
-                           (vec+ (slot-value *honeycomb* 'position)
-                                 (grid-to-world (vec half-size
-                                                     half-size
-                                                     half-size)))))
-           (order (sort (list 0 1 2) #'> :key (lambda (a) (abs (aref distance a)))))
+  (with-slots (children) node
+    (let* ((distance (vec- (slot-value *camera* 'position)
+                           (node-position node)))
+           (order (sort (list 0 1 2) #'>
+                        :key (lambda (a) (abs (aref distance a)))))
            (backwards (map 'vector (lambda (a) (< 0 a)) distance)))
       (doarray (i j k) children
         (let ((coords (make-array '(3) :initial-element 0)))
@@ -386,12 +399,12 @@
       ;; so it will draw bounder next frame instead of individual children
       (setf samples-visible child-samples-visible))))
 
-(defmethod draw ((node hc-leaf))
-  (with-slots (query-id list-id corner) node
-    (when (eq list-id nil)
+(defun draw-detailed (leaf)
+  (with-slots (detailed-list-id corner) leaf
+    (when (eq detailed-list-id nil)
       ;; Got no display list - better generate one
-      (setf list-id (gl:gen-lists 1))
-      (gl:with-new-list (list-id :compile)
+      (setf detailed-list-id (gl:gen-lists 1))
+      (gl:with-new-list (detailed-list-id :compile)
         (let* ((imin (aref corner 0))
                (jmin (aref corner 1))
                (kmin (aref corner 2))
@@ -403,10 +416,45 @@
                          do (loop for k from kmin to kmax
                                   do (unless (zerop (cell-value i j k))
                                        (draw-cell i j k))))))))
+    (gl:call-list detailed-list-id)))
+
+(defun draw-simple (leaf)
+  (with-slots (simple-list-id corner) leaf
+    (when (eq simple-list-id nil)
+      ;; Got no display list - better generate one
+      (setf simple-list-id (gl:gen-lists 1))
+      (gl:with-new-list (simple-list-id :compile)
+        (let* ((imin (aref corner 0))
+               (jmin (aref corner 1))
+               (kmin (aref corner 2))
+               (imax (+ imin +hc-leaf-size+ -1))
+               (jmax (+ jmin +hc-leaf-size+ -1))
+               (kmax (+ kmin +hc-leaf-size+ -1)))
+          (gl:with-primitives :points
+            (gl:normal 0.0 0.0 1.0) ;; This should point towards camera
+            (loop for i from imin to imax
+                  do (loop for j from jmin to jmax
+                           do (loop for k from kmin to kmax
+                                    do (unless (zerop (cell-value i j k))
+                                         (emit-cell-color i j k)
+                                         (let ((center (grid-to-world (coerce-vec (list i j k)))))
+                                         (gl:vertex (aref center 0)
+                                                    (aref center 1)
+                                                    (aref center 2)))))))))))
+    (gl:call-list simple-list-id)))
+
+(defmethod draw ((node hc-leaf))
+  (with-slots (query-id) node
     ;; TODO: copypasta
     (when (eq query-id nil) (setf query-id (car (gl:gen-queries 1))))
     (gl:begin-query :samples-passed query-id)
-    (gl:call-list list-id)
+    (if (> (distance-squared (slot-value *camera* 'position)
+                             (node-position node))
+           +lod-distance-squared+)
+      (progn
+        (gl:point-size 10) ;; TODO: point size
+        (draw-simple node))
+      (draw-detailed node))
     (gl:end-query :samples-passed)))
 
 (defmethod post-process ((node hc-leaf))
