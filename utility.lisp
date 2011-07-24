@@ -40,3 +40,15 @@
                 ,(if (eq (cdr left-vars) nil) body
                    (list (dodimension (cdr left-vars) (1+ dimension)))))))
     (dodimension var-list 0)))
+
+(declaim (ftype (function (integer integer integer) integer) morton-order))
+(defun morton-order (x y z)
+  "Converts x y z to Morton order by interleaving their bits"
+  (if (= 0 x y z) 0
+    (multiple-value-bind (xquot xrem) (floor x 2)
+      (multiple-value-bind (yquot yrem) (floor y 2)
+        (multiple-value-bind (zquot zrem) (floor z 2)
+          (+ (ash (morton-order xquot yquot zquot) 3)
+             (ash xrem 2)
+             (ash yrem 1)
+             zrem))))))
