@@ -17,6 +17,7 @@
                                                "space"
                                                "simplex-noise"
                                                "truncated-octahedron"))
+               (:file "shaders" :depends-on ("package"))
                (:file "init" :depends-on ("platonic-solids"
                                           "fuzzy-sphere"
                                           "hyperboloid"

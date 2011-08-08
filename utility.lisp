@@ -52,3 +52,29 @@
              (ash xrem 2)
              (ash yrem 1)
              zrem))))))
+
+(declaim (ftype (function (fixnum fixnum fixnum fixnum) matrix)
+                perspective-projection))
+(defun perspective-projection (width height near far)
+  "Creates perspective projection matrix"
+  (let ((n/r (coerce (/ near (/ width 2)) 'single-float))
+        (n/t (coerce (/ near (/ height 2)) 'single-float))
+        (f+n/n-f (coerce (/ (+ far near) (- near far)) 'single-float))
+        (2fn/n-f (coerce (/ (* 2 far near) (- near far)) 'single-float)))
+    (matrix n/r 0.0 0.0 0.0
+            0.0 n/t 0.0 0.0
+            0.0 0.0 f+n/n-f 2fn/n-f
+            0.0 0.0 -1.0 0.0)))
+
+(declaim (ftype (function (fixnum fixnum fixnum fixnum) matrix)
+                orthographic-projection))
+(defun orthographic-projection (width height near far)
+  "Creates perspective projection matrix"
+  (let ((1/r (coerce (/ 1 (/ width 2)) 'single-float))
+        (1/t (coerce (/ 1 (/ height 2)) 'single-float))
+        (2/n-f (coerce (/ 2 (- near far)) 'single-float))
+        (f+n/n-f (coerce (/ (+ far near) (- near far)) 'single-float)))
+    (matrix 1/r 0.0 0.0 0.0
+            0.0 1/t 0.0 0.0
+            0.0 0.0 2/n-f f+n/n-f
+            0.0 0.0 0.0 1.0)))

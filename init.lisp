@@ -17,6 +17,9 @@
 (defparameter *scene-modified* t)
 (defparameter *selected-tool* 1)
 
+(defparameter *projection* nil)
+(defparameter *program* nil)
+
 (defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
 
@@ -28,12 +31,40 @@
    :width 800
    :height 600))
 
+(defun make-shader (source type)
+  (let ((shader (gl:create-shader type)))
+    (gl:shader-source shader source)
+    (gl:compile-shader shader)
+    (unless (gl:get-shader shader :compile-status)
+      (let ((cffi:*default-foreign-encoding* :iso-8859-1))
+        (error "Failed to compile shader ~a~%~a"
+               type
+               (gl:get-shader-info-log shader))))
+    shader))
+
+(defun make-vertex-shader ()
+  (make-shader (vertex-shader-source) :vertex-shader))
+
+(defun make-geometry-shader ()
+  (make-shader (geometry-shader-source) :geometry-shader))
+
+(defun make-fragment-shader ()
+  (make-shader (fragment-shader-source) :fragment-shader))
+
 (defmethod glut:display-window :before ((window letcn-window))
   (gl:clear-color 0 0 0 0)
   (gl:matrix-mode :projection)
   (gl:load-identity)
   (make-scene)
-  (setf *camera* (make-instance 'camera :position (vec 0.0 0.0 20.0))))
+  (setf *camera* (make-instance 'camera :position (vec 0.0 0.0 20.0)))
+
+  (setf *program* (gl:create-program))
+  (gl:attach-shader *program* (make-vertex-shader))
+  ;; (gl:attach-shader *program* (make-geometry-shader))
+  (gl:attach-shader *program* (make-fragment-shader))
+
+  ;; TODO: Check if linked successfully
+  (gl:link-program *program*))
 
 (defun toggle-blend ()
   (if *blend*
@@ -84,6 +115,14 @@
        (gl:enable :cull-face)
        (gl:front-face :ccw)
        (gl:blend-func :src-alpha :one)
+
+       ;; (gl:use-program *program*)
+       ;; (let* ((location (gl:get-uniform-location *program* "mvp"))
+       ;;        (matrix (matrix* *projection*
+       ;;                         (slot-value *camera* 'rotation)
+       ;;                         (translate (slot-value *camera* 'position))))
+       ;;        (matrices (make-array 1 :initial-element matrix)))
+       ;;   (gl:uniform-matrix location 4 matrices))
 
        (draw-scene)
        (let (move-directions)
@@ -157,7 +196,8 @@
   (gl:load-identity)
   (let ((h (/ height width)))
     (gl:frustum -1 1 (- h) h 2 9000))
-  (gl:matrix-mode :modelview))
+  (gl:matrix-mode :modelview)
+  (setf *projection* (perspective-projection width height 2 9000)))
 
 (defun start ()
   (glut:display-window (make-instance 'letcn-window)))
