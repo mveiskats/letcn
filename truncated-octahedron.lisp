@@ -48,15 +48,13 @@
        +troct-faces+))
 
 ;;; Draw single face of truncated octahedron
-(defun draw-troct-face (idx)
+(defun draw-troct-face (idx offset)
   (let ((face (aref +troct-faces+ idx))
         (normal (aref +troct-normals+ idx)))
     (gl:with-primitives :polygon
-      (gl:normal (aref normal 0) (aref normal 1) (aref normal 2))
+      (emit-normal normal)
       (dolist (v face)
-        (gl:vertex (aref (aref +troct-vertices+ v) 0)
-                   (aref (aref +troct-vertices+ v) 1)
-                   (aref (aref +troct-vertices+ v) 2))))))
+        (emit-vertex (vec+ (aref +troct-vertices+ v) offset))))))
 
 ;;; Finds if line segment start-end intersects with troct centered on pos.
 ;;; Returns index of face closest to a or nil if there is no intersection

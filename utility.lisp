@@ -53,22 +53,17 @@
              (ash yrem 1)
              zrem))))))
 
-(declaim (ftype (function (fixnum fixnum fixnum fixnum) matrix)
-                perspective-projection))
-(defun perspective-projection (width height near far)
+(defun perspective-projection (fov-y aspect-ratio near far)
+  (declare (single-float fov-y aspect-ratio near far))
   "Creates perspective projection matrix"
-  (let ((n/r (coerce (/ near (/ width 2)) 'single-float))
-        (n/t (coerce (/ near (/ height 2)) 'single-float))
-        (f+n/n-f (coerce (/ (+ far near) (- near far)) 'single-float))
-        (2fn/n-f (coerce (/ (* 2 far near) (- near far)) 'single-float)))
-    (matrix n/r 0.0 0.0 0.0
-            0.0 n/t 0.0 0.0
-            0.0 0.0 f+n/n-f 2fn/n-f
+  (let ((f (/ (tan (* 0.5 fov-y)))))
+    (matrix (/ f aspect-ratio) 0.0 0.0 0.0
+            0.0 f 0.0 0.0
+            0.0 0.0 (/ (+ far near) (- near far)) (/ (* 2 far near) (- near far))
             0.0 0.0 -1.0 0.0)))
 
-(declaim (ftype (function (fixnum fixnum fixnum fixnum) matrix)
-                orthographic-projection))
 (defun orthographic-projection (width height near far)
+  (declare (fixnum width height near far))
   "Creates perspective projection matrix"
   (let ((1/r (coerce (/ 1 (/ width 2)) 'single-float))
         (1/t (coerce (/ 1 (/ height 2)) 'single-float))
@@ -78,3 +73,17 @@
             0.0 1/t 0.0 0.0
             0.0 0.0 2/n-f f+n/n-f
             0.0 0.0 0.0 1.0)))
+
+(defun emit-vertex (v)
+  "Calls gl:vertex"
+  (gl:vertex (aref v 0) (aref v 1) (aref v 2)))
+
+(defun emit-normal (n)
+  "Calls gl:normal"
+  (gl:normal (aref n 0) (aref n 1) (aref n 2)))
+
+(defun deg-to-rad (deg)
+  (coerce (* (/ pi 180) deg) 'single-float))
+
+(defun rad-to-deg (rad)
+  (coerce (* (/ 180 pi) rad) 'single-float))

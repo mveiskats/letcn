@@ -17,25 +17,20 @@
 
 (defun draw-scene ()
   (with-slots (position rotation) *camera*
-    (gl:load-identity)
-    (gl:mult-matrix rotation)
-    (gl:translate (- (aref position 0))
-                  (- (aref position 1))
-                  (- (aref position 2)))
+    (with-transformation (matrix* rotation (translate (vec* position -1.0)))
+      (draw *honeycomb*)
+      (post-process *honeycomb*)
 
-    (draw *honeycomb*)
-    (post-process *honeycomb*)
-
-    (multiple-value-bind (center face)
-      (find-closest-hit position
-                        (vec+ position
-                              (transform-direction (vec 0.0 0.0 -5.0)
-                                                   rotation)))
-       (if (eq center nil)
-         (setf *highlight* nil)
-         (progn
-           (setf *highlight* (cons center face))
-           (draw-highlight center face))))))
+      (multiple-value-bind (center face)
+        (find-closest-hit position
+                          (vec+ position
+                                (transform-direction (vec 0.0 0.0 -5.0)
+                                                     rotation)))
+        (if (eq center nil)
+          (setf *highlight* nil)
+          (progn
+            (setf *highlight* (cons center face))
+            (draw-highlight center face)))))))
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*

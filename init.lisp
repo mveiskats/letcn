@@ -20,6 +20,8 @@
 (defparameter *projection* nil)
 (defparameter *program* nil)
 
+(defparameter *shader-enabled* nil)
+
 (defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
 
@@ -50,6 +52,20 @@
 
 (defun make-fragment-shader ()
   (make-shader (fragment-shader-source) :fragment-shader))
+
+(defun use-current-program ()
+  (if *shader-enabled*
+    (progn
+      (gl:use-program *program*)
+      (let* ((location (gl:get-uniform-location *program* "mvp"))
+             (matrix (matrix* *projection*
+                              *transformation*
+                              ;(slot-value *camera* 'rotation)
+                              ;(translate (slot-value *camera* 'position))
+                              ))
+             (matrices (make-array 1 :initial-element matrix)))
+        (gl:uniform-matrix location 4 matrices nil)))
+    (gl:use-program 0)))
 
 (defmethod glut:display-window :before ((window letcn-window))
   (gl:clear-color 0 0 0 0)
@@ -116,14 +132,6 @@
        (gl:front-face :ccw)
        (gl:blend-func :src-alpha :one)
 
-       ;; (gl:use-program *program*)
-       ;; (let* ((location (gl:get-uniform-location *program* "mvp"))
-       ;;        (matrix (matrix* *projection*
-       ;;                         (slot-value *camera* 'rotation)
-       ;;                         (translate (slot-value *camera* 'position))))
-       ;;        (matrices (make-array 1 :initial-element matrix)))
-       ;;   (gl:uniform-matrix location 4 matrices))
-
        (draw-scene)
        (let (move-directions)
          (when *forward-pressed* (push (vec 0.0 0.0 -1.0) move-directions))
@@ -172,6 +180,7 @@
   (declare (ignore x y))
   (case key
     (#\Esc (glut:destroy-current-window))
+    (#\Tab (setf *shader-enabled* (not *shader-enabled*)))
     (#\b (toggle-blend))
     (#\m (toggle-mouselook window))
     (#\w (setf *forward-pressed* t))
@@ -191,13 +200,13 @@
     (#\d (setf *right-pressed* nil))))
 
 (defmethod glut:reshape ((window letcn-window) width height)
+  (let ((aspect-ratio (coerce (/ width height) 'single-float))
+        (fov-y (deg-to-rad 60)))
+    (setf *projection* (perspective-projection fov-y aspect-ratio 2.0 9000.0)))
   (gl:viewport 0 0 width height)
   (gl:matrix-mode :projection)
-  (gl:load-identity)
-  (let ((h (/ height width)))
-    (gl:frustum -1 1 (- h) h 2 9000))
-  (gl:matrix-mode :modelview)
-  (setf *projection* (perspective-projection width height 2 9000)))
+  (gl:load-matrix *projection*)
+  (gl:matrix-mode :modelview))
 
 (defun start ()
   (glut:display-window (make-instance 'letcn-window)))

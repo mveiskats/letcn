@@ -84,16 +84,16 @@
                                (gl:gen-lists 1))
                          node-height))
 
-      (gl:with-pushed-matrix
-        (gl:translate (aref world-offset 0)
-                      (aref world-offset 1)
-                      (aref world-offset 2))
+      (with-transformation (translate world-offset)
         ;; Can't have our bounding boxes showing
         (gl:color-mask nil nil nil nil)
         (gl:depth-mask nil)
         (gl:disable :lighting)
 
-        (gl:call-list (aref bounders node-height))
+        (gl:with-pushed-matrix
+          (gl:load-matrix *transformation*)
+          (use-current-program)
+          (gl:call-list (aref bounders node-height)))
 
         ;; Put things back the way they were
         (gl:color-mask :true :true :true :true)
@@ -235,9 +235,7 @@
 
 (defun draw-highlight (center idx)
   (gl:color 0.5 0.0 0.0)
-  (gl:with-pushed-matrix
-    (gl:translate (aref center 0) (aref center 1) (aref center 2))
-    (draw-troct-face idx)))
+    (draw-troct-face idx center))
 
 (defun remove-cell (center)
   (let ((cell (world-to-grid-int center))
@@ -271,12 +269,10 @@
 (defun draw-cell (i j k)
   (emit-cell-color i j k)
   (let ((center (grid-to-world (coerce-vec (list i j k)))))
-    (gl:with-pushed-matrix
-      (gl:translate (aref center 0) (aref center 1) (aref center 2))
-      (dotimes (idx (length +troct-faces+))
-        (multiple-value-bind (ii jj kk) (neighbour-cell i j k idx)
-          (when (zerop (cell-value ii jj kk))
-            (draw-troct-face idx)))))))
+    (dotimes (idx (length +troct-faces+))
+      (multiple-value-bind (ii jj kk) (neighbour-cell i j k idx)
+        (when (zerop (cell-value ii jj kk))
+          (draw-troct-face idx center))))))
 
 ;;; TODO: Probably would be a good idea to use
 ;;; Morton order (calling it "z-order" will probably be confusing)
@@ -448,13 +444,16 @@
     ;; TODO: copypasta
     (when (eq query-id nil) (setf query-id (car (gl:gen-queries 1))))
     (gl:begin-query :samples-passed query-id)
-    (if (> (distance-squared (slot-value *camera* 'position)
-                             (node-position node))
-           +lod-distance-squared+)
-      (progn
-        (gl:point-size 10) ;; TODO: point size
-        (draw-simple node))
-      (draw-detailed node))
+    (gl:with-pushed-matrix
+      (gl:load-matrix *transformation*)
+      (use-current-program)
+      (if (> (distance-squared (slot-value *camera* 'position)
+                               (node-position node))
+             +lod-distance-squared+)
+        (progn
+          (gl:point-size 1) ;; TODO: point size
+          (draw-simple node))
+        (draw-detailed node)))
     (gl:end-query :samples-passed)))
 
 (defmethod post-process ((node hc-leaf))
