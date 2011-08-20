@@ -13,12 +13,23 @@
          (2a (* a 2))
          (-2a (- 2a)))
     (make-array 24 :initial-contents
-      (mapcar (lambda (v) (apply #'vec v))
+      (mapcar (lambda (v) (world-to-lattice (apply #'vec v)))
               `((0.0 ,a ,2a) (,-a 0.0 ,2a) (0.0 ,-a ,2a) (,a 0.0 ,2a)
                 (0.0 ,2a ,a) (,-2a 0.0 ,a) (0.0 ,-2a ,a) (,2a 0.0 ,a)
                 (,-a ,2a 0.0) (,-2a ,a 0.0) (,-2a ,-a 0.0) (,-a ,-2a 0.0) (,a ,-2a 0.0) (,2a ,-a 0.0) (,2a ,a 0.0) (,a ,2a 0.0)
                 (0.0 ,2a ,-a) (,-2a 0.0 ,-a) (0.0 ,-2a ,-a) (,2a 0.0 ,-a)
                 (0.0 ,a ,-2a) (,-a 0.0 ,-2a) (0.0 ,-a ,-2a) (,a 0.0 ,-2a))))))
+
+;;; 3 vectors in lattice coordinates
+;;; from which bounding rhombohedron will be generated
+(defvar +cell-bounds+
+  (loop for vert across +troct-vertices+
+        maximize (aref vert 0) into max-x
+        maximize (aref vert 1) into max-y
+        maximize (aref vert 2) into max-z
+        finally (return (list (vec max-x 0.0 0.0)
+                              (vec 0.0 max-y 0.0)
+                              (vec 0.0 0.0 max-z)))))
 
 (defvar +troct-faces+
   ;; x = right, y = top, z = front/back
@@ -39,13 +50,25 @@
       (1 5 10 11 6 2))))   ;; bottom-left-front
 
 (defvar +troct-normals+
-  (map 'vector (lambda (f)
-                 (let ((v1 (aref +troct-vertices+ (first f)))
-                       (v2 (aref +troct-vertices+ (second f)))
-                       (v3 (aref +troct-vertices+ (third f))))
-                   (normalize (cross-product (vec- v2 v1)
-                                             (vec- v3 v2)))))
+  (map 'vector
+       (lambda (f)
+         (let ((v1 (lattice-to-world (aref +troct-vertices+ (first f))))
+               (v2 (lattice-to-world (aref +troct-vertices+ (second f))))
+               (v3 (lattice-to-world (aref +troct-vertices+ (third f)))))
+           (world-to-lattice (normalize (cross-product (vec- v2 v1)
+                                                       (vec- v3 v2))))))
        +troct-faces+))
+
+;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
+(defvar +cell-neighbours+
+  (labels ((vertex-sum (face)
+             (reduce #'vec+
+                    (mapcar (lambda (v) (aref +troct-vertices+ v)) face)
+                    :initial-value (vec 0.0 0.0 0.0)))
+           (neighbour-grid-offset (face)
+             (map 'vector #'truncate (vec* (vertex-sum face)
+                                           (/ 2.0 (length face))))))
+    (map 'vector #'neighbour-grid-offset +troct-faces+)))
 
 ;;; Draw single face of truncated octahedron
 (defun draw-troct-face (idx offset)
@@ -88,3 +111,21 @@
                                      (<= 0 v 2)
                                      (<= (1- v) u (1+ v)))))))
             (return-from iteration i)))))))
+
+(defun draw-highlight (center idx)
+  (gl:color 0.5 0.0 0.0)
+    (draw-troct-face idx center))
+
+(defun emit-cell-color (i j k)
+  (case (cell-value i j k)
+    (1 (gl:color 0.7 0.3 0.3))
+    (2 (gl:color 0.3 0.7 0.3))
+    (t (gl:color 0.3 0.3 0.7))))
+
+(defun draw-cell (i j k)
+  (emit-cell-color i j k)
+  (let ((center (coerce-vec (list i j k))))
+    (dotimes (idx (length +troct-faces+))
+      (multiple-value-bind (ii jj kk) (neighbour-cell i j k idx)
+        (when (zerop (cell-value ii jj kk))
+          (draw-troct-face idx center))))))
