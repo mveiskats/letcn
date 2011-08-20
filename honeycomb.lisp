@@ -7,16 +7,20 @@
 
 (defvar +lod-distance-squared+ 1024)
 
-;;; Helper methods to translate between world position
-;;; and grid coordinates of cell
-(let* ((g2w (matrix 0.5  0.0  0.5  0.0
-                    0.5  1.0  0.5  0.0
-                    0.5  0.0 -0.5  0.0
-                    0.0  0.0  0.0  1.0))
-       (w2g (inverse-matrix g2w)))
-  (defun grid-to-world (g) (transform-direction g g2w))
-  (defun world-to-grid (w) (transform-direction w w2g))
-  (defun world-to-grid-int (w) (map 'vector #'truncate (world-to-grid w))))
+;;; Transformations between world position
+;;; and lattice coordinates of cell
+(defvar +l2w-transform+
+  (matrix 0.5  0.0  0.5  0.0
+          0.5  1.0  0.5  0.0
+          0.5  0.0 -0.5  0.0
+          0.0  0.0  0.0  1.0))
+
+(defvar +w2l-transform+
+  (inverse-matrix +l2w-transform+))
+
+(defun lattice-to-world (g) (transform-direction g +l2w-transform+))
+(defun world-to-lattice (w) (transform-direction w +w2l-transform+))
+(defun world-to-lattice-int (w) (map 'vector #'truncate (world-to-lattice w)))
 
 ;;; Midpoint of each face scaled by 2 is center of a neighbouring cell
 (defvar +cell-neighbours+
@@ -25,7 +29,7 @@
                     (mapcar (lambda (v) (aref +troct-vertices+ v)) face)
                     :initial-value (vec 0.0 0.0 0.0)))
            (neighbour-grid-offset (face)
-             (world-to-grid-int (vec* (vertex-sum face)
+             (world-to-lattice-int (vec* (vertex-sum face)
                                       (/ 2.0 (length face))))))
     (map 'vector #'neighbour-grid-offset +troct-faces+)))
 
@@ -40,13 +44,13 @@
 (defvar +cell-bounds+
   (loop with grid-vert
         for vert across +troct-vertices+
-        do (setf grid-vert (world-to-grid vert))
+        do (setf grid-vert (world-to-lattice vert))
         maximize (aref grid-vert 0) into max-x
         maximize (aref grid-vert 1) into max-y
         maximize (aref grid-vert 2) into max-z
-        finally (return (list (grid-to-world (vec max-x 0.0 0.0))
-                              (grid-to-world (vec 0.0 max-y 0.0))
-                              (grid-to-world (vec 0.0 0.0 max-z))))))
+        finally (return (list (lattice-to-world (vec max-x 0.0 0.0))
+                              (lattice-to-world (vec 0.0 max-y 0.0))
+                              (lattice-to-world (vec 0.0 0.0 max-z))))))
 
 (defun compile-bounder (list-id node-height)
   (let ((corners (make-array '(2 2 2)))
@@ -57,7 +61,7 @@
         (setf (aref corners i j k)
               (reduce #'vec+
                       (mapcar #'flip-vector +cell-bounds+ (list i j k))
-                      :initial-value (grid-to-world (coerce-vec (mapcar #'min-or-max
+                      :initial-value (lattice-to-world (coerce-vec (mapcar #'min-or-max
                                                                         (list i j k))))))))
 
     ;; These turn out visible even if it seems
@@ -77,7 +81,7 @@
 ;;; Draw a bounding rhombohedron for honeycomb of given size
 ;;; offset from the specified grid cell
 (defun draw-honeycomb-bounder (grid-offset node-height)
-  (let ((world-offset (grid-to-world (coerce-vec grid-offset))))
+  (let ((world-offset (lattice-to-world (coerce-vec grid-offset))))
     (with-slots (bounders) *honeycomb*
       (when (eq (aref bounders node-height) nil)
         (compile-bounder (setf (aref bounders node-height)
@@ -106,7 +110,7 @@
                             :initial-element 0))
         (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
     (doarray (i j k) result
-      (let ((p (grid-to-world (coerce-vec (list i j k)))))
+      (let ((p (lattice-to-world (coerce-vec (list i j k)))))
         (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
@@ -223,7 +227,7 @@
       (rasterize-honeycomb start end
         (lambda (x y z)
           (let* ((pos (vec x y z))
-                 (cell (world-to-grid-int pos))
+                 (cell (world-to-lattice-int pos))
                  (i (aref cell 0))
                  (j (aref cell 1))
                  (k (aref cell 2)))
@@ -238,13 +242,13 @@
     (draw-troct-face idx center))
 
 (defun remove-cell (center)
-  (let ((cell (world-to-grid-int center))
+  (let ((cell (world-to-lattice-int center))
         (cv (slot-value *honeycomb* 'cell-values)))
     (setf (aref cv (aref cell 0) (aref cell 1) (aref cell 2)) 0
           *scene-modified* t)))
 
 (defun add-cell (center face value)
-  (let ((cell (world-to-grid-int center))
+  (let ((cell (world-to-lattice-int center))
         (cv (slot-value *honeycomb* 'cell-values)))
     (multiple-value-bind (i j k) (neighbour-cell (aref cell 0)
                                                  (aref cell 1)
@@ -268,7 +272,7 @@
 
 (defun draw-cell (i j k)
   (emit-cell-color i j k)
-  (let ((center (grid-to-world (coerce-vec (list i j k)))))
+  (let ((center (lattice-to-world (coerce-vec (list i j k)))))
     (dotimes (idx (length +troct-faces+))
       (multiple-value-bind (ii jj kk) (neighbour-cell i j k idx)
         (when (zerop (cell-value ii jj kk))
@@ -363,7 +367,7 @@
                                           (+ (aref corner 1) half-size)
                                           (+ (aref corner 2) half-size)))))
     (vec+ (slot-value *honeycomb* 'position)
-          (grid-to-world node-midpoint)))))
+          (lattice-to-world node-midpoint)))))
 
 ;;; Draw child nodes in z-order
 (defmethod draw ((node hc-partition))
@@ -433,7 +437,7 @@
                            do (loop for k from kmin to kmax
                                     do (unless (zerop (cell-value i j k))
                                          (emit-cell-color i j k)
-                                         (let ((center (grid-to-world (coerce-vec (list i j k)))))
+                                         (let ((center (lattice-to-world (coerce-vec (list i j k)))))
                                          (gl:vertex (aref center 0)
                                                     (aref center 1)
                                                     (aref center 2)))))))))))
