@@ -4,47 +4,45 @@
 "#version 400
 
 in vec4 position;
-uniform mat4 mvp;
+
+uniform mat4 model_view_transform;
 
 void main(void){
-  gl_Position = mvp * position;
+  gl_Position = model_view_transform * position;
 }
 ")
 
 (defun geometry-shader-source ()
-"#version 400
+"
+#version 400
 
-layout(triangles) in;
-layout(line_strip, max_vertices = 3) out;
+layout(points) in;
+layout(triangle_strip, max_vertices = 4) out;
 
-uniform mat4 mvp;
+out vec2 uv;
 
-in Data{
-  vec3 normal;
-  vec4 position;
-} vdata[3];
+const float troct_radius = 0.56;
 
-out Data{
-  vec3 color;
-} gdata;
-
-void main(){
-  for(int i = 0; i < gl_in.length(); i++) {
-    gl_Position = gl_in[i].gl_Position;
-    EmitVertex();
-  }
-  EndPrimitive();
-
-  vec4 middle = (vdata[0].position + vdata[1].position + vdata[2].position)/3;
-  middle.w = 1.0;
-  vec3 normal = normalize((vdata[0].normal + vdata[1].normal + vdata[2].normal)/3);
-
-  gl_Position = mvp * middle;
-  gdata.color = vec3(0);
+void main(void)
+{
+  gl_Position = gl_in[0].gl_Position;
+  gl_Position.x -= troct_radius; gl_Position.y -= troct_radius;
+  uv.x = -1.0; uv.y = -1.0;
   EmitVertex();
 
-  gl_Position = mvp * (middle + vec4(normal*0.4, 0));
-  gdata.color = normal*0.5+0.5;
+  gl_Position = gl_in[0].gl_Position;
+  gl_Position.x += troct_radius; gl_Position.y -= troct_radius;
+  uv.x = 1.0; uv.y = -1.0;
+  EmitVertex();
+
+  gl_Position = gl_in[0].gl_Position;
+  gl_Position.x -= troct_radius; gl_Position.y += troct_radius;
+  uv.x = -1.0; uv.y = 1.0;
+  EmitVertex();
+
+  gl_Position = gl_in[0].gl_Position;
+  gl_Position.x += troct_radius; gl_Position.y += troct_radius;
+  uv.x = 1.0; uv.y = 1.0;
   EmitVertex();
 
   EndPrimitive();
@@ -54,9 +52,26 @@ void main(){
 (defun fragment-shader-source ()
 "#version 400
 
-out vec3 color;
+in vec3 teh_normal;
+in vec2 uv;
+out vec4 color;
+
+const vec4 ambient_color = vec4(1.0, 0.65, 0.0, 1.0);
+const vec4 diffuse_color = vec4(0.2, 0.5, 0.5, 1.0);
+
+uniform vec3 global_light_direction;
 
 void main(){
-  color = vec3(0.2, 0.7, 0.2);
+  float diffuse_term = clamp(abs(dot(global_light_direction, teh_normal)), 0.0, 1.0);
+
+
+  if ((uv.x * uv.x + uv.y * uv.y) > 1.0)
+    discard;
+  else
+  {
+    vec3 normal = vec3(uv.x, uv.y, sqrt(1 - uv.x * uv.x - uv.y * uv.y));
+    float diffuse_brightness = dot(global_light_direction, normal);
+    color = ambient_color + diffuse_color * diffuse_brightness;
+  }
 }
 ")

@@ -53,18 +53,19 @@
 (defun make-fragment-shader ()
   (make-shader (fragment-shader-source) :fragment-shader))
 
+(defun set-uniform-matrix (location matrix)
+  (gl:uniform-matrix location 4 (make-array 1 :initial-element matrix) nil))
+
 (defun use-current-program ()
   (if *shader-enabled*
     (progn
       (gl:use-program *program*)
-      (let* ((location (gl:get-uniform-location *program* "mvp"))
-             (matrix (matrix* *projection*
-                              *transformation*
-                              ;(slot-value *camera* 'rotation)
-                              ;(translate (slot-value *camera* 'position))
-                              ))
-             (matrices (make-array 1 :initial-element matrix)))
-        (gl:uniform-matrix location 4 matrices nil)))
+      (set-uniform-matrix (gl:get-uniform-location *program* "model_view_transform")
+                          (matrix* *projection* (get-transformation)))
+      (set-uniform-matrix (gl:get-uniform-location *program* "normal_transform")
+                          (transpose-matrix (inverse-matrix (get-transformation))))
+      (gl:uniformfv (gl:get-uniform-location *program* "global_light_direction")
+                    (transform-direction (vec 0.0 0.0 -1.0) (get-transformation))))
     (gl:use-program 0)))
 
 (defmethod glut:display-window :before ((window letcn-window))
@@ -76,7 +77,7 @@
 
   (setf *program* (gl:create-program))
   (gl:attach-shader *program* (make-vertex-shader))
-  ;; (gl:attach-shader *program* (make-geometry-shader))
+  (gl:attach-shader *program* (make-geometry-shader))
   (gl:attach-shader *program* (make-fragment-shader))
 
   ;; TODO: Check if linked successfully
@@ -202,7 +203,7 @@
 (defmethod glut:reshape ((window letcn-window) width height)
   (let ((aspect-ratio (coerce (/ width height) 'single-float))
         (fov-y (deg-to-rad 60)))
-    (setf *projection* (perspective-projection fov-y aspect-ratio 2.0 9000.0)))
+    (setf *projection* (perspective-projection fov-y aspect-ratio 1.0 9000.0)))
   (gl:viewport 0 0 width height)
   (gl:matrix-mode :projection)
   (gl:load-matrix *projection*)

@@ -1,5 +1,8 @@
 (in-package :letcn)
 
+(defparameter *disable-occlusion-culling* t)
+(defparameter *disable-detailed-cells* t)
+
 ;;; This contains the state of honeycomb
 (defparameter *honeycomb* nil)
 
@@ -61,7 +64,7 @@
 (defmethod draw ((hc honeycomb))
   (with-transformation +l2w-transform+
     (gl:with-pushed-matrix
-      (gl:load-matrix *transformation*)
+      (gl:load-matrix (get-transformation))
       (use-current-program)
       (draw (slot-value hc 'octree-root)))))
 
@@ -124,7 +127,7 @@
 ;;; multiple values just like gl:gen-lists does
 (defmethod draw :around ((node hc-node))
   (with-slots (query-id corner samples-visible height) node
-    (if (> samples-visible 0)
+    (if (or *disable-occlusion-culling* (> samples-visible 0))
       (call-next-method)
       (progn
         (when (eq query-id nil) (setf query-id (car (gl:gen-queries 1))))
@@ -134,7 +137,7 @@
 
 (defmethod post-process :around ((node hc-node))
   (with-slots (query-id samples-visible) node
-    (if (> samples-visible 0)
+    (if (or *disable-occlusion-culling* (> samples-visible 0))
       (call-next-method)
       ;; Ideally we should check if query is done and
       ;; give something for cpu to do while it finishes
@@ -226,11 +229,12 @@
     ;; TODO: copypasta
     (when (eq query-id nil) (setf query-id (car (gl:gen-queries 1))))
     (gl:begin-query :samples-passed query-id)
-    (if (> (distance-squared (slot-value *camera* 'position)
-                             (node-position node))
-           +lod-distance-squared+)
+    (if (or *disable-detailed-cells*
+            (> (distance-squared (slot-value *camera* 'position)
+                                 (node-position node))
+               +lod-distance-squared+))
       (progn
-        (gl:point-size 1) ;; TODO: point size
+        (gl:point-size 5) ;; TODO: point size
         (draw-simple node))
       (draw-detailed node))
     (gl:end-query :samples-passed)))
