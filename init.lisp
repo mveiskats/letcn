@@ -60,12 +60,13 @@
   (if *shader-enabled*
     (progn
       (gl:use-program *program*)
-      (set-uniform-matrix (gl:get-uniform-location *program* "model_view_transform")
-                          (matrix* *projection* (get-transformation)))
-      (set-uniform-matrix (gl:get-uniform-location *program* "normal_transform")
-                          (transpose-matrix (inverse-matrix (get-transformation))))
+      (set-uniform-matrix (gl:get-uniform-location *program* "model_transform")
+                          (get-transformation))
+      (set-uniform-matrix (gl:get-uniform-location *program* "view_transform")
+                          *projection*)
       (gl:uniformfv (gl:get-uniform-location *program* "global_light_direction")
-                    (transform-direction (vec 0.0 0.0 -1.0) (get-transformation))))
+                    (transform-direction (vec 0.0 0.0 -1.0)
+                                         (get-transformation))))
     (gl:use-program 0)))
 
 (defmethod glut:display-window :before ((window letcn-window))

@@ -5,10 +5,10 @@
 
 in vec4 position;
 
-uniform mat4 model_view_transform;
+uniform mat4 model_transform;
 
 void main(void){
-  gl_Position = model_view_transform * position;
+  gl_Position = model_transform * position;
 }
 ")
 
@@ -21,27 +21,36 @@ layout(triangle_strip, max_vertices = 4) out;
 
 out vec2 uv;
 
+uniform mat4 view_transform;
+
 const float troct_radius = 0.56;
 
 void main(void)
 {
-  gl_Position = gl_in[0].gl_Position;
-  gl_Position.x -= troct_radius; gl_Position.y -= troct_radius;
+  if (gl_in[0].gl_Position.z > -1.0) return;
+
+  vec3 v = normalize(vec3(gl_in[0].gl_Position));
+  vec3 right = cross(v, vec3(0.0, -1.0, 0.0));
+  vec3 up = cross(right, v);
+
+  up = up * troct_radius;
+  right = right * troct_radius;
+
+  v = vec3(gl_in[0].gl_Position);
+
+  gl_Position = view_transform * vec4(v - right - up, 1.0);
   uv.x = -1.0; uv.y = -1.0;
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position;
-  gl_Position.x += troct_radius; gl_Position.y -= troct_radius;
+  gl_Position = view_transform * vec4(v + right - up, 1.0);
   uv.x = 1.0; uv.y = -1.0;
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position;
-  gl_Position.x -= troct_radius; gl_Position.y += troct_radius;
+  gl_Position = view_transform * vec4(v - right + up, 1.0);
   uv.x = -1.0; uv.y = 1.0;
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position;
-  gl_Position.x += troct_radius; gl_Position.y += troct_radius;
+  gl_Position = view_transform * vec4(v + right + up, 1.0);
   uv.x = 1.0; uv.y = 1.0;
   EmitVertex();
 
