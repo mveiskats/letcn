@@ -6,7 +6,7 @@
 ;;; This contains the state of honeycomb
 (defparameter *honeycomb* nil)
 
-(defconstant +hc-leaf-size+ 4)
+(defparameter +hc-leaf-size+ 32)
 
 ;;; TODO: Probably would be a good idea to use
 ;;; Morton order (calling it "z-order" will probably be confusing)
@@ -256,7 +256,7 @@
         (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
-                                        3 0.25)))
+                                        2 0.25)))
             (setf (aref result i j k) 1))))
 
     (make-instance 'honeycomb
