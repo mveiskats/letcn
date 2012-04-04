@@ -3,12 +3,12 @@
 (defun vertex-shader-source ()
 "#version 400
 
-in vec4 position;
+in vec3 position;
 
 uniform mat4 model_transform;
 
 void main(void){
-  gl_Position = model_transform * position;
+  gl_Position = model_transform * vec4(position, 1.0);
 }
 ")
 
@@ -23,22 +23,31 @@ out vec2 uv;
 
 uniform mat4 view_transform;
 
-const float troct_radius = 0.56;
+const float radius = 0.56;
 
 void main(void)
 {
+  // Behind near clipping plane
   if (gl_in[0].gl_Position.z > -1.0) return;
 
   vec3 v = normalize(vec3(gl_in[0].gl_Position));
-  vec3 right = cross(v, vec3(0.0, -1.0, 0.0));
+  vec3 right = cross(v, vec3(0.0, 1.0, 0.0));
   vec3 up = cross(right, v);
 
-  up = up * troct_radius;
-  right = right * troct_radius;
+  up = up * radius;
+  right = right * radius;
 
   v = vec3(gl_in[0].gl_Position);
 
-  gl_Position = view_transform * vec4(v - right - up, 1.0);
+  vec4 top_right = view_transform * vec4(v + right + up, 1.0);
+  vec4 bot_left = view_transform * vec4(v - right - up, 1.0);
+
+  // Out of the viewport
+  if (bot_left.x > bot_left.z || bot_left.y > bot_left.z ||
+      top_right.x < - top_right.z || top_right.y < - top_right.z)
+    return;
+
+  gl_Position = bot_left;
   uv.x = -1.0; uv.y = -1.0;
   EmitVertex();
 
@@ -50,7 +59,7 @@ void main(void)
   uv.x = -1.0; uv.y = 1.0;
   EmitVertex();
 
-  gl_Position = view_transform * vec4(v + right + up, 1.0);
+  gl_Position = top_right;
   uv.x = 1.0; uv.y = 1.0;
   EmitVertex();
 
@@ -61,7 +70,6 @@ void main(void)
 (defun fragment-shader-source ()
 "#version 400
 
-in vec3 teh_normal;
 in vec2 uv;
 out vec4 color;
 
@@ -71,9 +79,6 @@ const vec4 diffuse_color = vec4(0.2, 0.5, 0.5, 1.0);
 uniform vec3 global_light_direction;
 
 void main(){
-  float diffuse_term = clamp(abs(dot(global_light_direction, teh_normal)), 0.0, 1.0);
-
-
   if ((uv.x * uv.x + uv.y * uv.y) > 1.0)
     discard;
   else
