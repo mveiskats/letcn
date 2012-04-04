@@ -37,11 +37,12 @@
   (let ((shader (gl:create-shader type)))
     (gl:shader-source shader source)
     (gl:compile-shader shader)
-    (unless (gl:get-shader shader :compile-status)
-      (let ((cffi:*default-foreign-encoding* :iso-8859-1))
-        (error "Failed to compile shader ~a~%~a"
-               type
-               (gl:get-shader-info-log shader))))
+    (let ((cffi:*default-foreign-encoding* :iso-8859-1)
+          (log (gl:get-shader-info-log shader)))
+      (unless (gl:get-shader shader :compile-status)
+        (error "Failed to compile shader ~a~%~a~%" type log))
+      (when (and log (> (length log) 0))
+        (format t "shader-info-log for ~a~%~a~%" type log)))
     shader))
 
 (defun make-vertex-shader ()
@@ -81,8 +82,15 @@
   (gl:attach-shader *program* (make-geometry-shader))
   (gl:attach-shader *program* (make-fragment-shader))
 
-  ;; TODO: Check if linked successfully
-  (gl:link-program *program*))
+  (gl:link-program *program*)
+  (gl:validate-program *program*)
+
+  (let ((cffi:*default-foreign-encoding* :iso-8859-1)
+        (log (gl:get-program-info-log *program*)))
+    (unless (gl:get-program *program* :validate-status)
+      (error "Shader program not valid~%~a~%" log))
+    (when (and log (> (length log) 0))
+      (format t "get-program-info-log~%~a~%" log))))
 
 (defun toggle-blend ()
   (if *blend*
