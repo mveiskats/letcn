@@ -33,7 +33,8 @@
         (setf *highlight* nil)
       (progn
         (setf *highlight* (cons center face))
-        (draw-highlight center face)))))
+        (gl:color 0.5 0.0 0.0)
+        (draw-troct-face idx center)))))
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*

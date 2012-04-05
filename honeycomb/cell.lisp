@@ -112,10 +112,6 @@
                                      (<= (1- v) u (1+ v)))))))
             (return-from iteration i)))))))
 
-(defun draw-highlight (center idx)
-  (gl:color 0.5 0.0 0.0)
-    (draw-troct-face idx center))
-
 (defun emit-cell-color (i j k)
   (case (cell-value i j k)
     (1 (gl:color 0.7 0.3 0.3))
