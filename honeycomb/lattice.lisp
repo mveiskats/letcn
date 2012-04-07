@@ -24,68 +24,47 @@
             (+ j (aref neighbour 1))
             (+ k (aref neighbour 2)))))
 
-(defun rasterize (x0 y0 z0 x1 y1 z1 callback)
-  (let ((dx (abs (- x1 x0)))
-        (dy (abs (- y1 y0)))
-        (dz (abs (- z1 z0))))
-    (let ((swap-xy (and (> dy dx) (>= dy dz)))
-          (swap-xz (and (> dz dx) (> dz dy))))
-      ;; Note for optimization - only one of these is true
-      (when swap-xy
-        (rotatef x0 y0)
-        (rotatef x1 y1)
-        (rotatef dx dy))
-      (when swap-xz
-        (rotatef x0 z0)
-        (rotatef x1 z1)
-        (rotatef dx dz))
-      (let* ((step-x (if (> x1 x0) 1 -1))
-             (step-y (if (> y1 y0) 1 -1))
-             (step-z (if (> z1 z0) 1 -1))
-             (x (floor x0))
-             (y (floor y0))
-             (z (floor z0))
-             (dy/dx (/ dy dx))
-             (dz/dx (/ dz dx))
-             (drift-x (if (> x1 x0) (- x0 (floor x0)) (- (ceiling x0) x0)))
-             (drift-y (if (> y1 y0)
-                        (- (- y0 (floor y)) (* dy/dx drift-x))
-                        (- (- (ceiling y0) y0) (* dy/dx drift-x))))
-             (drift-z (if (> z1 z0)
-                        (- (- z0 (floor z)) (* dz/dx drift-x))
-                        (- (- (ceiling z0) z0) (* dz/dx drift-x)))))
-        (labels ((swap-and-callback ()
-                   (let ((xx x) (yy y) (zz z))
-                     (when swap-xz (rotatef xx zz))
-                     (when swap-xy (rotatef xx yy))
-                     (funcall callback xx yy zz)))
-                 (inc-y ()
-                   (incf y step-y)
-                   (unless (= drift-y 1)
-                     (swap-and-callback))
-                   (decf drift-y))
-                 (inc-z ()
-                   (incf z step-z)
-                   (unless (= drift-z 1)
-                     (swap-and-callback))
-                   (decf drift-z)))
-          (loop do (swap-and-callback)
-                do (incf drift-y dy/dx)
-                do (incf drift-z dz/dx)
-                do (if (and (>= drift-y 1) (>= drift-z 1))
-                     ;; Special case - both y and z change in the same step
-                     ;; so we have to determine which one goes first
-                     (if (> (/ (- drift-y 1) dy/dx)
-                            (/ (- drift-z 1) dz/dx))
-                       (progn (inc-y) (inc-z))
-                       (progn (inc-z) (inc-y)))
-                     (if (>= drift-y 1)
-                       (inc-y)
-                       (if (>= drift-z 1)
-                         (inc-z))))
-                do (incf x step-x)
-                while (if (> step-x 0) (< x x1) (> (1+ x) x1))))))))
-
+;; Calls a function for every cell of cubic honeycomb
+;; the given line segment passes through.
+;; Cell width is 1 and they are identified by the corner
+;; with lowest coordinates.
+(defun rasterize-segment (x0 y0 z0 x1 y1 z1 callback)
+  (let* ((dx (- x1 x0))
+         (dy (- y1 y0))
+         (dz (- z1 z0))
+         (stepx (if (> x1 x0) 1 -1))
+         (stepy (if (> y1 y0) 1 -1))
+         (stepz (if (> z1 z0) 1 -1))
+         (x (if (> dx 0.0) (floor x0) (ceiling x0)))
+         (y (if (> dy 0.0) (floor y0) (ceiling y0)))
+         (z (if (> dz 0.0) (floor z0) (ceiling z0)))
+         ;; Usually in parametric equations this is denoted by t,
+         ;; but this is a bad idea in common lisp
+         (px (unless (= dx 0.0) (/ (- (+ x stepx) x0) dx)))
+         (py (unless (= dy 0.0) (/ (- (+ y stepy) y0) dy)))
+         (pz (unless (= dz 0.0) (/ (- (+ z stepz) z0) dz))))
+    (flet ((minp ()
+             ;; Find minimum of the three while discarding nil values
+             (if (and px (or (not py) (< px py)) (or (not pz) (< px pz))) px
+               (if (and py (or (not pz) (< py pz))) py pz)))
+           (output-step ()
+             (funcall callback
+                      (if (> dx 0.0) x (1- x))
+                      (if (> dy 0.0) y (1- y))
+                      (if (> dz 0.0) z (1- z)))))
+      (loop with p
+            do (output-step)
+            while (<= (setf p (minp)) 1.0)
+            do (progn
+                 (when (and px (<= px p))
+                   (incf x stepx)
+                   (setf px (/ (- (+ x stepx) x0) dx)))
+                 (when (and py (<= py p))
+                   (incf y stepy)
+                   (setf py (/ (- (+ y stepy) y0) dy)))
+                 (when (and pz (<= pz p))
+                   (incf z stepz)
+                   (setf pz (/ (- (+ z stepz) z0) dz))))))))
 
 ;;; Step through cubic lattice (edge length 0.5) cell by cell.
 ;;; Each cell is shared by exactly 2 cells of the honeycomb.
@@ -103,22 +82,22 @@
            (pop-cell ()
              (apply callback (mapcar (lambda (a) (* a 0.5)) (caar buffer)))
              (setf buffer (cdr buffer))))
-    (rasterize (aref start*2 0) (aref start*2 1) (aref start*2 2)
-               (aref end*2 0) (aref end*2 1) (aref end*2 2)
-      (lambda (i j k)
-        (let ((even-cell (list (if (evenp i) i (1+ i))
-                               (if (evenp j) j (1+ j))
-                               (if (evenp k) k (1+ k))))
-              (odd-cell (list (if (oddp i) i (1+ i))
-                              (if (oddp j) j (1+ j))
-                              (if (oddp k) k (1+ k)))))
+      (rasterize-segment (aref start*2 0) (aref start*2 1) (aref start*2 2)
+                         (aref end*2 0) (aref end*2 1) (aref end*2 2)
+        (lambda (i j k)
+          (let ((even-cell (list (if (evenp i) i (1+ i))
+                                 (if (evenp j) j (1+ j))
+                                 (if (evenp k) k (1+ k))))
+                (odd-cell (list (if (oddp i) i (1+ i))
+                                (if (oddp j) j (1+ j))
+                                (if (oddp k) k (1+ k)))))
             (push-cell even-cell)
             (push-cell odd-cell)
             (setf buffer (sort buffer #'< :key #'cdr))
             (loop while (> (length buffer) 4)
                   do (pop-cell)))))
-    (loop while buffer
-          do (pop-cell)))))
+      (loop while buffer
+            do (pop-cell)))))
 
 ;;; In honeycomb hc, find closest cell and the face being hit
 ;;; by line segment start-end
