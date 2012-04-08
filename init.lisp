@@ -71,6 +71,8 @@
     (gl:use-program 0)))
 
 (defmethod glut:display-window :before ((window letcn-window))
+  (format t "OpenGL: ~a~%" (gl:get-string :version))
+  (format t "Shaders: ~a~%" (gl:get-string :shading-language-version))
   (gl:clear-color 0 0 0 0)
   (gl:matrix-mode :projection)
   (gl:load-identity)
