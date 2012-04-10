@@ -1,20 +1,20 @@
 (in-package :letcn)
 
 (defun vertex-shader-source ()
-"#version 400
+"#version 150
 
-in vec3 position;
+in vec4 position;
 
 uniform mat4 model_transform;
 
 void main(void){
-  gl_Position = model_transform * vec4(position, 1.0);
+  gl_Position = model_transform * position;
 }
 ")
 
 (defun geometry-shader-source ()
 "
-#version 400
+#version 150
 
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
@@ -68,9 +68,10 @@ void main(void)
 ")
 
 (defun fragment-shader-source ()
-"#version 400
+"#version 150
 
 in vec2 uv;
+
 out vec4 color;
 
 const vec4 ambient_color = vec4(1.0, 0.65, 0.0, 1.0);
