@@ -27,7 +27,8 @@
 
 (defclass hc-leaf (hc-node)
   ((detailed-list-id :initform nil)
-   (simple-list-id :initform nil)))
+   (buffer-id :initform nil)
+   (buffer-size :initform nil)))
 
 (defun node-size (height)
   (* +hc-leaf-size+ (expt 2 height)))
@@ -203,26 +204,42 @@
     (gl:call-list detailed-list-id)))
 
 (defun draw-simple (leaf)
-  (with-slots (simple-list-id corner) leaf
-    (when (eq simple-list-id nil)
-      ;; Got no display list - better generate one
-      (setf simple-list-id (gl:gen-lists 1))
-      (gl:with-new-list (simple-list-id :compile)
-        (let* ((imin (aref corner 0))
-               (jmin (aref corner 1))
-               (kmin (aref corner 2))
-               (imax (+ imin +hc-leaf-size+ -1))
-               (jmax (+ jmin +hc-leaf-size+ -1))
-               (kmax (+ kmin +hc-leaf-size+ -1)))
-          (gl:with-primitives :points
-            (gl:normal 0.0 0.0 1.0) ;; This should point towards camera
+  (with-slots (buffer-id buffer-size corner) leaf
+    (unless buffer-id
+      ;; Got no buffer - better generate one
+      (let* ((max-size (* 3 +hc-leaf-size+ +hc-leaf-size+ +hc-leaf-size+))
+             (imin (aref corner 0))
+             (jmin (aref corner 1))
+             (kmin (aref corner 2))
+             (imax (+ imin +hc-leaf-size+ -1))
+             (jmax (+ jmin +hc-leaf-size+ -1))
+             (kmax (+ kmin +hc-leaf-size+ -1)))
+        (setf buffer-size 0)
+        (cffi:with-foreign-object (buffer-data :float max-size)
+          (flet ((push-buffer (a)
+                   (setf (cffi:mem-aref buffer-data :float (incf buffer-size))
+                         (coerce a 'float))))
             (loop for i from imin to imax
                   do (loop for j from jmin to jmax
                            do (loop for k from kmin to kmax
                                     do (unless (zerop (cell-value i j k))
-                                         (emit-cell-color i j k)
-                                         (gl:vertex i j k)))))))))
-      (gl:call-list simple-list-id)))
+                                         ;; TODO: color / material
+                                         (push-buffer i)
+                                         (push-buffer j)
+                                         (push-buffer k))))))
+
+          (setf buffer-id (car (gl:gen-buffers 1)))
+          (gl:bind-buffer :array-buffer buffer-id)
+          (%gl:buffer-data :array-buffer
+                           (* buffer-size (cffi:foreign-type-size :float))
+                           buffer-data
+                           :static-draw))))
+
+      (gl:bind-buffer :array-buffer buffer-id)
+      (gl:enable-client-state :vertex-array)
+      (%gl:vertex-pointer 3 :float 0 (cffi:make-pointer 0))
+      (gl:draw-arrays :points 0 (truncate buffer-size 3))
+      (gl:disable-client-state :vertex-array)))
 
 (defmethod draw ((node hc-leaf))
   (with-slots (query-id) node
