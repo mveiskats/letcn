@@ -2,7 +2,7 @@
 
 (defconstant 2pi (* 2 pi))
 (defconstant pi/2 (/ pi 2))
-(defconstant gl-float-size (cffi:foreign-type-size '%gl:float))
+(defconstant float-size (cffi:foreign-type-size :float))
 
 (defun coerce-vec (v)
   (map 'vec (lambda (a) (coerce a 'single-float)) v))

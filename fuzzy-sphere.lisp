@@ -62,7 +62,7 @@
       (let ((vert-buff (car (gl:gen-buffers 1))))
         (gl:bind-buffer :array-buffer vert-buff)
         (%gl:buffer-data :array-buffer
-                         (* gl-float-size (sphere-vertex-count s) 3)
+                         (* float-size (sphere-vertex-count s) 3)
                          v-arr
                          :stream-draw)
 
