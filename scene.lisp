@@ -18,23 +18,28 @@
 (defun draw-scene ()
   (with-slots (position rotation) *camera*
     (with-transformation (matrix* rotation (translate (vec* position -1.0)))
+      (gl:enable :polygon-offset-fill)
+      (gl:polygon-offset 1.0 1.0)
       (draw *honeycomb*)
       (post-process *honeycomb*)
-      ;(draw-highlight)
-      )))
+      (draw-highlight position rotation)
+      (gl:disable :polygon-offset-fill))))
 
-(defun draw-highlight()
+(defun draw-highlight(position rotation)
   (multiple-value-bind (center face)
-      (find-closest-hit position
-                        (vec+ position
-                              (transform-direction (vec 0.0 0.0 -5.0)
-                                                   rotation)))
-    (if (eq center nil)
-        (setf *highlight* nil)
-      (progn
-        (setf *highlight* (cons center face))
-        (gl:color 0.5 0.0 0.0)
-        (draw-troct-face idx center)))))
+      (let ((front (vec+ position
+                         (transform-direction (vec 0.0 0.0 -5.0)
+                                              (inverse-matrix rotation)))))
+        (find-closest-hit position front))
+    (cond (center
+            (setf *highlight* (cons center face))
+            (gl:polygon-offset 0.0 1.0)
+
+            (use-current-program)
+            (gl:with-primitives :points
+              (gl:vertex-attrib 1 1.0 1.0 1.0)
+              (gl:vertex (aref center 0) (aref center 1) (aref center 2))))
+          (t (setf *highlight* nil)))))
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*
