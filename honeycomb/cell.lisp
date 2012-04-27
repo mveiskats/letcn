@@ -112,11 +112,15 @@
                                      (<= (1- v) u (1+ v)))))))
             (return-from iteration i)))))))
 
-(defun emit-cell-color (i j k)
+(defun cell-color (i j k)
   (case (cell-value i j k)
-    (1 (gl:color 0.7 0.3 0.3))
-    (2 (gl:color 0.3 0.7 0.3))
-    (t (gl:color 0.3 0.3 0.7))))
+    (0 (values 0.0 0.0 0.0))
+    (1 (values 0.7 0.3 0.3))
+    (2 (values 0.3 0.7 0.3))
+    (t (values 0.3 0.3 0.7))))
+
+(defun emit-cell-color (i j k)
+  (multiple-value-call #'gl:color (cell-color i j k)))
 
 (defun draw-cell (i j k)
   (emit-cell-color i j k)

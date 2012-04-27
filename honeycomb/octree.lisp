@@ -27,7 +27,8 @@
 
 (defclass hc-leaf (hc-node)
   ((detailed-list-id :initform nil)
-   (buffer-id :initform nil)
+   (vert-buffer-id :initform nil)
+   (col-buffer-id :initform nil)
    (buffer-size :initform nil)))
 
 (defun node-size (height)
@@ -204,10 +205,13 @@
     (gl:call-list detailed-list-id)))
 
 (defun draw-simple (leaf)
-  (with-slots (buffer-id buffer-size corner) leaf
-    (unless buffer-id
-      ;; Got no buffer - better generate one
-      (let* ((max-size (* 3 +hc-leaf-size+ +hc-leaf-size+ +hc-leaf-size+))
+  (with-slots (vert-buffer-id col-buffer-id buffer-size corner) leaf
+    (unless vert-buffer-id
+      ;; Got no buffers - better generate them
+      ;; vertex-attrib-pointer was behaving weirdly with non-zero stride,
+      ;; so made two buffers for now
+      (let* ((max-size (* 6 +hc-leaf-size+ +hc-leaf-size+ +hc-leaf-size+))
+             (buffers (gl:gen-buffers 2))
              (imin (aref corner 0))
              (jmin (aref corner 1))
              (kmin (aref corner 2))
@@ -215,31 +219,47 @@
              (jmax (+ jmin +hc-leaf-size+ -1))
              (kmax (+ kmin +hc-leaf-size+ -1)))
         (setf buffer-size 0)
-        (cffi:with-foreign-object (buffer-data :float max-size)
-          (flet ((push-buffer (a)
-                   (setf (cffi:mem-aref buffer-data :float (incf buffer-size))
-                         (coerce a 'float))))
-            (loop for i from imin to imax
-                  do (loop for j from jmin to jmax
-                           do (loop for k from kmin to kmax
-                                    do (unless (zerop (cell-value i j k))
-                                         ;; TODO: color / material
-                                         (push-buffer i)
-                                         (push-buffer j)
-                                         (push-buffer k))))))
+        (cffi:with-foreign-object (vert-buffer-data :float max-size)
+          (cffi:with-foreign-object (col-buffer-data :float max-size)
+            (flet ((push-buffers (v c)
+                     (setf (cffi:mem-aref vert-buffer-data :float buffer-size)
+                           (coerce v 'float)
+                           (cffi:mem-aref col-buffer-data :float buffer-size)
+                           (coerce c 'float))
+                   (incf buffer-size)))
+              (loop for i from imin to imax
+                    do (loop for j from jmin to jmax
+                             do (loop for k from kmin to kmax
+                                      do (unless (zerop (cell-value i j k))
+                                           (multiple-value-bind (r g b)
+                                               (cell-color i j k)
+                                             (push-buffers i r)
+                                             (push-buffers j g)
+                                             (push-buffers k b)))))))
 
-          (setf buffer-id (car (gl:gen-buffers 1)))
-          (gl:bind-buffer :array-buffer buffer-id)
-          (%gl:buffer-data :array-buffer
-                           (* buffer-size (cffi:foreign-type-size :float))
-                           buffer-data
-                           :static-draw))))
+            (setf vert-buffer-id (first buffers))
+            (gl:bind-buffer :array-buffer vert-buffer-id)
+            (%gl:buffer-data :array-buffer
+                             (* buffer-size float-size)
+                             vert-buffer-data
+                             :static-draw)
+            (setf col-buffer-id (second buffers))
+            (gl:bind-buffer :array-buffer col-buffer-id)
+            (%gl:buffer-data :array-buffer
+                             (* buffer-size float-size)
+                             col-buffer-data
+                             :static-draw)))))
 
-      (gl:bind-buffer :array-buffer buffer-id)
-      (gl:enable-client-state :vertex-array)
-      (%gl:vertex-pointer 3 :float 0 (cffi:make-pointer 0))
+      (gl:enable-vertex-attrib-array 0)
+      (gl:enable-vertex-attrib-array 1)
+
+      (gl:bind-buffer :array-buffer vert-buffer-id)
+      (%gl:vertex-attrib-pointer 0 3 :float :false 0 (cffi:make-pointer 0))
+      (gl:bind-buffer :array-buffer col-buffer-id)
+      (%gl:vertex-attrib-pointer 1 3 :float :false 0 (cffi:make-pointer 0))
       (gl:draw-arrays :points 0 (truncate buffer-size 3))
-      (gl:disable-client-state :vertex-array)))
+      (gl:disable-vertex-attrib-array 0)
+      (gl:disable-vertex-attrib-array 1)))
 
 (defmethod draw ((node hc-leaf))
   (with-slots (query-id) node

@@ -92,7 +92,9 @@
     (unless (gl:get-program *program* :validate-status)
       (error "Shader program not valid~%~a~%" log))
     (when (and log (> (length log) 0))
-      (format t "get-program-info-log~%~a~%" log))))
+      (format t "get-program-info-log~%~a~%" log)))
+  (gl:bind-attrib-location *program* 0 "position")
+  (gl:bind-attrib-location *program* 1 "color"))
 
 (defun toggle-blend ()
   (if *blend*
