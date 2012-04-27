@@ -290,11 +290,14 @@
         (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
     (doarray (i j k) result
       (let ((p (lattice-to-world (coerce-vec (list i j k)))))
-        (if (> 0 (* 10 (noise3d-octaves (/ (aref p 0) 10)
+        (let ((n (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
-                                        2 0.25)))
-            (setf (aref result i j k) 1))))
+                                        2 0.25))))
+          (if (> 0.3 n -0.3)
+            (setf (aref result i j k) (cond ((> -0.2 n) 1)
+                                            ((> 0.2 n) 2)
+                                            (t 3)))))))
 
     (make-instance 'honeycomb
                    :cell-values result
