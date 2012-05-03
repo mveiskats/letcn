@@ -1,5 +1,54 @@
 (in-package :letcn)
 
+(defun set-uniform-matrix (location matrix)
+  (gl:uniform-matrix location 4 (make-array 1 :initial-element matrix) nil))
+
+(defun make-shader (source type)
+  (let ((shader (gl:create-shader type)))
+    (gl:shader-source shader source)
+    (gl:compile-shader shader)
+    (let ((cffi:*default-foreign-encoding* :iso-8859-1)
+          (log (gl:get-shader-info-log shader)))
+      (unless (gl:get-shader shader :compile-status)
+        (error "Failed to compile shader ~a~%~a~%" type log))
+      (when (and log (> (length log) 0))
+        (format t "shader-info-log for ~a~%~a~%" type log)))
+    shader))
+
+(defun link-shader-program (program)
+  (gl:link-program program)
+  (gl:validate-program program)
+
+  (let ((cffi:*default-foreign-encoding* :iso-8859-1)
+        (log (gl:get-program-info-log program)))
+    (unless (gl:get-program program :validate-status)
+      (error "Shader program not valid~%~a~%" log))
+    (when (and log (> (length log) 0))
+      (format t "get-program-info-log~%~a~%" log))))
+
+(defun make-shader-program ()
+  (setf *program* (gl:create-program))
+  (let ((vs (make-shader (vertex-shader-source) :vertex-shader))
+        (gs (make-shader (geometry-shader-source) :geometry-shader))
+        (fs (make-shader (fragment-shader-source) :fragment-shader)))
+    (gl:attach-shader *program* vs)
+    (gl:attach-shader *program* gs)
+    (gl:attach-shader *program* fs))
+
+  (link-shader-program *program*)
+
+  (gl:bind-attrib-location *program* 0 "position")
+  (gl:bind-attrib-location *program* 1 "color"))
+
+(defun set-shader-vars (program)
+  (set-uniform-matrix (gl:get-uniform-location program "model_transform")
+                      (get-transformation))
+  (set-uniform-matrix (gl:get-uniform-location program "view_transform")
+                      *projection*)
+  (gl:uniformfv (gl:get-uniform-location program "global_light_direction")
+                (transform-direction (vec 0.0 0.0 -1.0)
+                                     (get-transformation))))
+
 (defun vertex-shader-source ()
 "#version 150
 

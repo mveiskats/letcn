@@ -35,10 +35,12 @@
             (setf *highlight* (cons center face))
             (gl:polygon-offset 0.0 1.0)
 
-            (use-current-program)
+            (gl:use-program *program*)
+            (set-shader-vars *program*)
             (gl:with-primitives :points
               (gl:vertex-attrib 1 1.0 1.0 1.0)
-              (gl:vertex (aref center 0) (aref center 1) (aref center 2))))
+              (gl:vertex (aref center 0) (aref center 1) (aref center 2)))
+            (gl:use-program 0))
           (t (setf *highlight* nil)))))
 
 (defun rotate-camera (dx dy)

@@ -1,6 +1,6 @@
 (in-package :letcn)
 
-(defparameter *disable-occlusion-culling* t)
+(defparameter *disable-occlusion-culling* nil)
 (defparameter *disable-detailed-cells* t)
 
 ;;; This contains the state of honeycomb
@@ -66,8 +66,11 @@
 (defmethod draw ((hc honeycomb))
   (with-transformation +l2w-transform+
     (gl:with-pushed-matrix
+      ;; TODO: only one of these is needed
       (gl:load-matrix (get-transformation))
-      (use-current-program)
+      (gl:use-program *program*)
+      (set-shader-vars *program*)
+      (gl:use-program 0)
       (draw (slot-value hc 'octree-root)))))
 
 (defmethod post-process ((hc honeycomb))
@@ -257,7 +260,9 @@
       (%gl:vertex-attrib-pointer 0 3 :float :false 0 (cffi:make-pointer 0))
       (gl:bind-buffer :array-buffer col-buffer-id)
       (%gl:vertex-attrib-pointer 1 3 :float :false 0 (cffi:make-pointer 0))
+      (when *shader-enabled* (gl:use-program *program*))
       (gl:draw-arrays :points 0 (truncate buffer-size 3))
+      (gl:use-program 0)
       (gl:disable-vertex-attrib-array 0)
       (gl:disable-vertex-attrib-array 1)))
 
@@ -271,7 +276,6 @@
                                  (node-position node))
                +lod-distance-squared+))
       (progn
-        (gl:point-size 5) ;; TODO: point size
         (draw-simple node))
       (draw-detailed node))
     (gl:end-query :samples-passed)))

@@ -24,5 +24,6 @@
                                           "fuzzy-sphere"
                                           "hyperboloid"
                                           "honeycomb/octree"
-                                          "scene"))
+                                          "scene"
+                                          "shaders"))
                (:file "tests/main" :depends-on ("init"))))

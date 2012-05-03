@@ -33,43 +33,6 @@
    :width 800
    :height 600))
 
-(defun make-shader (source type)
-  (let ((shader (gl:create-shader type)))
-    (gl:shader-source shader source)
-    (gl:compile-shader shader)
-    (let ((cffi:*default-foreign-encoding* :iso-8859-1)
-          (log (gl:get-shader-info-log shader)))
-      (unless (gl:get-shader shader :compile-status)
-        (error "Failed to compile shader ~a~%~a~%" type log))
-      (when (and log (> (length log) 0))
-        (format t "shader-info-log for ~a~%~a~%" type log)))
-    shader))
-
-(defun make-vertex-shader ()
-  (make-shader (vertex-shader-source) :vertex-shader))
-
-(defun make-geometry-shader ()
-  (make-shader (geometry-shader-source) :geometry-shader))
-
-(defun make-fragment-shader ()
-  (make-shader (fragment-shader-source) :fragment-shader))
-
-(defun set-uniform-matrix (location matrix)
-  (gl:uniform-matrix location 4 (make-array 1 :initial-element matrix) nil))
-
-(defun use-current-program ()
-  (if *shader-enabled*
-    (progn
-      (gl:use-program *program*)
-      (set-uniform-matrix (gl:get-uniform-location *program* "model_transform")
-                          (get-transformation))
-      (set-uniform-matrix (gl:get-uniform-location *program* "view_transform")
-                          *projection*)
-      (gl:uniformfv (gl:get-uniform-location *program* "global_light_direction")
-                    (transform-direction (vec 0.0 0.0 -1.0)
-                                         (get-transformation))))
-    (gl:use-program 0)))
-
 (defmethod glut:display-window :before ((window letcn-window))
   (format t "OpenGL: ~a~%" (gl:get-string :version))
   (format t "Shaders: ~a~%" (gl:get-string :shading-language-version))
@@ -79,22 +42,7 @@
   (make-scene)
   (setf *camera* (make-instance 'camera :position (vec 0.0 0.0 20.0)))
 
-  (setf *program* (gl:create-program))
-  (gl:attach-shader *program* (make-vertex-shader))
-  (gl:attach-shader *program* (make-geometry-shader))
-  (gl:attach-shader *program* (make-fragment-shader))
-
-  (gl:link-program *program*)
-  (gl:validate-program *program*)
-
-  (let ((cffi:*default-foreign-encoding* :iso-8859-1)
-        (log (gl:get-program-info-log *program*)))
-    (unless (gl:get-program *program* :validate-status)
-      (error "Shader program not valid~%~a~%" log))
-    (when (and log (> (length log) 0))
-      (format t "get-program-info-log~%~a~%" log)))
-  (gl:bind-attrib-location *program* 0 "position")
-  (gl:bind-attrib-location *program* 1 "color"))
+  (make-shader-program))
 
 (defun toggle-blend ()
   (if *blend*
