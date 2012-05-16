@@ -13,10 +13,7 @@
 
 ;;; Length of a vector squared
 (defun vector-length-squared (v)
-  (let ((x (aref v 0))
-        (y (aref v 1))
-        (z (aref v 2)))
-    (+ (* x x) (* y y) (* z z))))
+  (dot-product v v))
 
 ;;; Distance between two points squared
 (defun distance-squared (p1 p2)
