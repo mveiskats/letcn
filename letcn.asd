@@ -19,6 +19,7 @@
                (:file "honeycomb/octree" :depends-on ("honeycomb/cell"
                                                       "space"
                                                       "simplex-noise"))
+               (:file "honeycomb/collision" :depends-on ("honeycomb/octree"))
                (:file "shaders" :depends-on ("package"))
                (:file "init" :depends-on ("platonic-solids"
                                           "fuzzy-sphere"
