@@ -28,3 +28,31 @@
                                                           (vec- p1 p0)
                                                           (vec- p2 p0)))))
 
+;;; Returns point on line segment that intersects the specified sphere.
+;;; Returns a if it is within the sphere.
+;;; If there are two intersections, returns one closest to a.
+;;; a, b - endpoints of the line segment
+;;; c, r - center and radius of the sphere
+;;; for details, see line-sphere intersection on wikipedia
+(defun line-sphere-intersection (a b c r)
+  ;; Translate everything so that a is at (0 0 0)
+  (let ((b-a (vec- b a))
+        (c-a (vec- c a)))
+    (if (<= (dot-product c-a c-a) r)
+        a ;; Starting point is within the sphere
+        (let* ((bc (dot-product b-a c-a))
+               (b^2 (dot-product b-a b-a))
+               ;; determinant of quadratic equation
+               (d (- (* bc bc) (* b^2 (- (dot-product c-a c-a) (* r r)))))
+               (p (if (< d 0.0)
+                      nil ;; Line doesnt intersect sphere
+                      (let* ((sqrt-d (sqrt d))
+                             (p1 (/ (+ bc sqrt-d) b^2))
+                             (p2 (/ (- bc sqrt-d) b^2))
+                             (p1-in-segment (<= 0.0 p1 1.0))
+                             (p2-in-segment (<= 0.0 p2 1.0)))
+                        (cond ((and p1-in-segment p2-in-segment) (min p1 p2))
+                              (p1-in-segment p1)
+                              (p2-in-segment p2)
+                              (t nil))))))
+          (if p (vec+ a (vec* b-a p)) nil)))))
