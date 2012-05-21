@@ -1,8 +1,15 @@
 (in-package :letcn)
 
 (defclass 3d-object ()
+  ;; TODO: rotation
   ((position :initarg :position :initform (vec 0.0 0.0 0.0)))
   (:documentation "Object with position and orientation"))
+
+(defun world-to-local (v obj)
+  (vec- v (slot-value obj 'position)))
+
+(defun local-to-world (v obj)
+  (vec+ v (slot-value obj 'position)))
 
 (defgeneric draw (obj))
 
@@ -21,4 +28,3 @@
   (with-slots (position) object
     (with-transformation (translate position)
       (call-next-method))))
-

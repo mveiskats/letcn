@@ -51,6 +51,15 @@
 
 (defun move-camera (direction)
   (with-slots (position rotation) *camera*
-    (setf position (vec+ (transform-direction direction
-                                              (inverse-matrix rotation))
-                         position))))
+    (let* ((world-dir (transform-direction direction (inverse-matrix rotation)))
+           (new-pos (vec+ world-dir position)))
+      (multiple-value-bind (p n)
+          (sphere-honeycomb-intersection position new-pos 1.5)
+        (when p
+          (let* ((pushback-len (* (/ (distance new-pos p)
+                                     (vec-length world-dir))
+                                  (dot-product n (vec* world-dir -1.0))))
+                 (pushback-pos (vec+ new-pos (vec* n (+ pushback-len 0.01)))))
+            ;; TODO: check collision for the slide
+            (setf new-pos pushback-pos)))
+        (setf position new-pos)))))

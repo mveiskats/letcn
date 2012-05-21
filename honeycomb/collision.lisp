@@ -92,3 +92,46 @@
                          (not (zerop (aref cell-values i j k)))
                          (setf face (line-troct-intersection start end pos)))
                 (return-from stepper (values pos face))))))))))
+
+;;; Returns center and radius of sphere encompassing honeycomb segment
+;;; specified by two opposite corners
+(defun hc-bounding-sphere (minx miny minz maxx maxy maxz)
+  (let* ((minv (lattice-to-world (coerce-vec (list minx miny minz))))
+         (maxv (lattice-to-world (coerce-vec (list maxx maxy maxz))))
+         (midpoint (vec* (vec+ minv maxv) 0.5))
+         (radius (+ (* 0.5 (vec-length (vec- maxv minv))) +troct-radius+)))
+    (values midpoint radius)))
+
+;;; Returns first point of intersection and
+;;; normal vector of the surface at that point
+(defun sphere-honeycomb-intersection (start end radius)
+  (labels ((collide-sector (x y z size)
+             (if (= size 1)
+               (when (> (cell-value x y z) 0)
+                 (let* ((c (lattice-to-world (coerce-vec (list x y z))))
+                        (r (+ radius +troct-radius+))
+                        (hit (line-sphere-intersection start end c r)))
+                   (when hit (values hit (normalize (vec- hit c))))))
+               (multiple-value-bind (c r) (hc-bounding-sphere x y z
+                                                              (+ x size -1)
+                                                              (+ y size -1)
+                                                              (+ z size -1))
+                 (when (line-sphere-intersect? start end c (+ radius r))
+                   (let ((half-size (truncate size 2))
+                         result result-norm p norm)
+                     (dotimes (i 2)
+                       (dotimes (j 2)
+                         (dotimes (k 2)
+                           (multiple-value-setq (p norm)
+                             (collide-sector (+ x (* i half-size))
+                                             (+ y (* j half-size))
+                                             (+ z (* k half-size))
+                                             half-size))
+                           (when (or (not result)
+                                     (and p
+                                          (< (distance-squared start p)
+                                             (distance-squared start result))))
+                             (setf result p
+                                   result-norm norm)))))
+                     (values result result-norm)))))))
+    (collide-sector 0 0 0 64)))
