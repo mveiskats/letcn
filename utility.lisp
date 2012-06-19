@@ -1,4 +1,5 @@
 (in-package :letcn)
+(import 'sb-cga::~)
 
 (defconstant 2pi (* 2 pi))
 (defconstant pi/2 (/ pi 2))

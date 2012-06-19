@@ -6,7 +6,8 @@
                (:file "matrix-stack" :depends-on ("package"))
                (:file "utility" :depends-on ("package" "matrix-stack"))
                (:file "platonic-solids" :depends-on ("package"))
-               (:file "space" :depends-on ("package"))
+               (:file "quaternion" :depends-on ("utility"))
+               (:file "space" :depends-on ("quaternion"))
                (:file "scene" :depends-on ("hyperboloid"
                                            "honeycomb/octree"))
                (:file "hyperboloid" :depends-on ("utility"))
