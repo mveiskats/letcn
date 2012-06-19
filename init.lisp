@@ -96,10 +96,10 @@
 
        (draw-scene)
        (let (move-directions)
-         (when *forward-pressed* (push (vec 0.0 0.0 -1.0) move-directions))
-         (when *back-pressed* (push (vec 0.0 0.0 1.0) move-directions))
-         (when *left-pressed* (push (vec -1.0 0.0 0.0) move-directions))
-         (when *right-pressed* (push (vec 1.0 0.0 0.0) move-directions))
+         (when *forward-pressed* (push +front+ move-directions))
+         (when *back-pressed* (push +back+ move-directions))
+         (when *left-pressed* (push +left+ move-directions))
+         (when *right-pressed* (push +right+ move-directions))
          (when move-directions
            (move-camera (vec* (reduce #'vec+ move-directions
                                       :initial-value (vec 0.0 0.0 0.0))

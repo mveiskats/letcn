@@ -5,6 +5,13 @@
 (defconstant pi/2 (/ pi 2))
 (defconstant float-size (cffi:foreign-type-size :float))
 
+(defconstant +up+    (vec  0.0  1.0  0.0))
+(defconstant +down+  (vec  0.0 -1.0  0.0))
+(defconstant +right+ (vec  1.0  0.0  0.0))
+(defconstant +left+  (vec -1.0  0.0  0.0))
+(defconstant +front+ (vec  0.0  0.0 -1.0))
+(defconstant +back+  (vec  0.0  0.0  1.0))
+
 (defun coerce-vec (v)
   (map 'vec (lambda (a) (coerce a 'single-float)) v))
 
