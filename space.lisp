@@ -1,8 +1,8 @@
 (in-package :letcn)
 
 (defclass 3d-object ()
-  ;; TODO: rotation
-  ((position :initarg :position :initform (vec 0.0 0.0 0.0)))
+  ((position :initarg :position :initform (vec 0.0 0.0 0.0))
+   (rotation :initform +identity-quat+ :initarg :rotation))
   (:documentation "Object with position and orientation"))
 
 (defun world-to-local (v obj)

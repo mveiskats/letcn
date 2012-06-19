@@ -2,9 +2,8 @@
 
 (defparameter *camera* nil)
 
-(defclass camera ()
-  ((position :initform (vec 0.0 0.0 0.0) :initarg :position)
-   (rotation :initform +identity-matrix+ :initarg :rotation)))
+(defclass camera (3d-object)
+  ())
 
 (defun make-scene ()
   (setf *honeycomb* (make-honeycomb 64)))
@@ -15,21 +14,26 @@
     (%gl::get-query-object-uiv id pname result)
     (cffi:mem-ref result '%gl:uint)))
 
+(defun world-to-local-matrix (obj)
+  (with-slots (position rotation) obj
+    (matrix* (quat-to-matrix rotation)
+             (translate (vec* position -1.0)))))
+
 (defun draw-scene ()
-  (with-slots (position rotation) *camera*
-    (with-transformation (matrix* rotation (translate (vec* position -1.0)))
-      (gl:enable :polygon-offset-fill)
-      (gl:polygon-offset 1.0 1.0)
-      (draw *honeycomb*)
-      (post-process *honeycomb*)
-      (draw-highlight position rotation)
-      (gl:disable :polygon-offset-fill))))
+  (with-transformation (world-to-local-matrix *camera*)
+    (gl:enable :polygon-offset-fill)
+    (gl:polygon-offset 1.0 1.0)
+    (draw *honeycomb*)
+    (post-process *honeycomb*)
+    (with-slots (position rotation) *camera*
+      (draw-highlight position rotation))
+    (gl:disable :polygon-offset-fill)))
 
 (defun draw-highlight(position rotation)
   (multiple-value-bind (center face)
       (let ((front (vec+ position
-                         (transform-direction (vec 0.0 0.0 -5.0)
-                                              (inverse-matrix rotation)))))
+                         (quat-rotate (vec 0.0 0.0 -5.0)
+                                      (quat-inverse rotation)))))
         (find-closest-hit position front))
     (cond (center
             (setf *highlight* (cons center face))
@@ -45,13 +49,13 @@
 
 (defun rotate-camera (dx dy)
   (with-slots (rotation) *camera*
-    (let ((rot-x (rotate-around (vec 0.0 1.0 0.0) dx))
-          (rot-y (rotate-around (vec 1.0 0.0 0.0) dy)))
-      (setf rotation (matrix* rot-x rot-y rotation)))))
+    (let ((rot-x (axis-angle-to-quat +up+ dx))
+          (rot-y (axis-angle-to-quat +right+ dy)))
+      (setf rotation (normalize-quat (quat* (quat* rot-x rot-y) rotation))))))
 
 (defun move-camera (direction)
   (with-slots (position rotation) *camera*
-    (let* ((world-dir (transform-direction direction (inverse-matrix rotation)))
+    (let* ((world-dir (quat-rotate direction (quat-inverse rotation)))
            (new-pos (vec+ world-dir position)))
       (multiple-value-bind (p n)
           (sphere-honeycomb-intersection position new-pos 1.5)
