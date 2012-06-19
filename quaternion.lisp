@@ -10,10 +10,17 @@
 (declaim (ftype (function (single-float single-float single-float single-float)
                           quat)
                 quat))
-(defun quat (a b c d)
-  (make-array 4 :element-type 'single-float :initial-contents (list a b c d)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun quat (a b c d)
+    (make-array 4
+                :element-type 'single-float
+                :initial-contents (list a b c d))))
 
-(defconstant +identity-quat+ (quat 1.0 0.0 0.0 0.0))
+(defconstant +identity-quat+
+  (if (boundp '+identity-quat+)
+      (symbol-value '+identity-quat+)
+      (quat 1.0 0.0 0.0 0.0))
+  "Constant identity quaternion")
 
 (defun normalize-quat (q)
   (macrolet ((refsq (i) `(let ((a (aref q ,i))) (* a a))))
@@ -76,5 +83,11 @@
         (- (aref q 1))
         (- (aref q 2))
         (- (aref q 3))))
+
+(defun quat-rotate (v q)
+  "Applies rotation of quaternion q to vector v"
+  (let* ((tmp (quat 0.0 (aref v 0) (aref v 1) (aref v 2)))
+         (result (quat* (quat* q tmp) (quat-inverse q))))
+    (vec (aref result 1) (aref result 2) (aref result 3))))
 
 ;;(defun quat-slerp (q0 q1 p))
