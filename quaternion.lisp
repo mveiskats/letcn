@@ -13,6 +13,8 @@
 (defun quat (a b c d)
   (make-array 4 :element-type 'single-float :initial-contents (list a b c d)))
 
+(defconstant +identity-quat+ (quat 1.0 0.0 0.0 0.0))
+
 (defun normalize-quat (q)
   (macrolet ((refsq (i) `(let ((a (aref q ,i))) (* a a))))
     (let ((len-squared (+ (refsq 0) (refsq 1) (refsq 2) (refsq 3))))
