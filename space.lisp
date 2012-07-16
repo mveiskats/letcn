@@ -2,6 +2,7 @@
 
 (defclass 3d-object ()
   ((position :initarg :position :initform (vec 0.0 0.0 0.0))
+   (velocity :initarg :velocity :initform (vec 0.0 0.0 0.0))
    (rotation :initform +identity-quat+ :initarg :rotation))
   (:documentation "Object with position and orientation"))
 

@@ -13,7 +13,9 @@
 ;;; when referencing child nodes and grid cells
 (defclass honeycomb (3d-object)
   ((cell-values :initarg :cell-values)
-   (octree-root :initarg :octree-root)))
+   (octree-root :initarg :octree-root)
+   (total-mass :initarg :total-mass)
+   (center-of-mass :initarg :center-of-mass)))
 
 (defclass hc-node ()
   ((corner :initarg :corner)
@@ -291,18 +293,31 @@
   (let ((result (make-array (list size size size)
                             :element-type 'integer
                             :initial-element 0))
-        (octree-height (ceiling (log (/ size +hc-leaf-size+) 2))))
+        (octree-height (ceiling (log (/ size +hc-leaf-size+) 2)))
+        (total-x 0.0)
+        (total-y 0.0)
+        (total-z 0.0)
+        (total-mass 0.0))
     (doarray (i j k) result
       (let ((p (lattice-to-world (coerce-vec (list i j k)))))
         (let ((n (* 10 (noise3d-octaves (/ (aref p 0) 10)
                                         (/ (aref p 1) 10)
                                         (/ (aref p 2) 10)
                                         2 0.25))))
-          (if (> 0.3 n -0.3)
+          (when (> 0.3 n -0.3)
             (setf (aref result i j k) (cond ((> -0.2 n) 1)
                                             ((> 0.2 n) 2)
-                                            (t 3)))))))
+                                            (t 3)))
+            ;; Everything weighs 1 unit for now
+            (incf total-x i)
+            (incf total-y j)
+            (incf total-z k)
+            (incf total-mass)))))
 
     (make-instance 'honeycomb
                    :cell-values result
-                   :octree-root (make-hc-node #(0 0 0) octree-height))))
+                   :octree-root (make-hc-node #(0 0 0) octree-height)
+                   :total-mass total-mass
+                   :center-of-mass (lattice-to-world
+                                     (vec* (vec total-x total-y total-z)
+                                           (/ total-mass))))))

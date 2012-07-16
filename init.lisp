@@ -10,8 +10,8 @@
 (defparameter *left-pressed* nil)
 (defparameter *right-pressed* nil)
 
-(defparameter *old-t* nil)
-(defparameter *delta-t* nil)
+(defparameter *old-ticks* nil)
+(defparameter *delta-ticks* nil)
 
 (defparameter *highlight* nil)
 (defparameter *scene-modified* t)
@@ -82,10 +82,10 @@
   (block display
     (restart-case
      (progn
-       (let ((current-t (get-internal-real-time)))
-         (unless *old-t* (setf *old-t* current-t))
-         (setf *delta-t* (- current-t *old-t*)
-               *old-t* current-t))
+       (let ((current-ticks (get-internal-real-time)))
+         (unless *old-ticks* (setf *old-ticks* current-ticks))
+         (setf *delta-ticks* (- current-ticks *old-ticks*)
+               *old-ticks* current-ticks))
 
        (gl:clear :color-buffer :depth-buffer)
        (gl:light :light0 :position #(-10.0 10.0 10.0 1.0))
@@ -94,19 +94,20 @@
        (gl:front-face :ccw)
        (gl:blend-func :src-alpha :one)
 
+       (let ((delta-time (coerce (/ *delta-ticks*
+                                    internal-time-units-per-second)
+                                 'single-float)))
+         (let (move-directions)
+           (when *forward-pressed* (push +front+ move-directions))
+           (when *back-pressed* (push +back+ move-directions))
+           (when *left-pressed* (push +left+ move-directions))
+           (when *right-pressed* (push +right+ move-directions))
+           (when move-directions
+             (move-camera (vec* (reduce #'vec+ move-directions
+                                        :initial-value (vec 0.0 0.0 0.0))
+                                (* *move-speed* delta-time)))))
+         (pass-time delta-time))
        (draw-scene)
-       (let (move-directions)
-         (when *forward-pressed* (push +front+ move-directions))
-         (when *back-pressed* (push +back+ move-directions))
-         (when *left-pressed* (push +left+ move-directions))
-         (when *right-pressed* (push +right+ move-directions))
-         (when move-directions
-           (move-camera (vec* (reduce #'vec+ move-directions
-                                      :initial-value (vec 0.0 0.0 0.0))
-                              (coerce (* *move-speed*
-                                         (/ *delta-t*
-                                            internal-time-units-per-second))
-                                      'single-float)))))
 
        (glut:swap-buffers)
        (glut:post-redisplay)

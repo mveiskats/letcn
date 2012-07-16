@@ -67,3 +67,17 @@
             ;; TODO: check collision for the slide
             (setf new-pos pushback-pos)))
         (setf position new-pos)))))
+
+(defun pass-time (dt)
+  (with-slots (position velocity) *camera*
+    ;; TODO: proper gravity calculations
+    (let ((gravity (normalize (vec- (slot-value *honeycomb* 'center-of-mass)
+                                    position))))
+      (setf velocity (vec+ velocity (vec* gravity dt))))
+    (let* ((new-pos (vec+ position (vec* velocity dt)))
+           (p (sphere-honeycomb-intersection position new-pos 1.5)))
+       (when p
+         ;; pushback
+         (setf new-pos (vec+ p (vec* (normalize velocity) -0.01))
+               velocity (vec 0.0 0.0 0.0)))
+       (setf position new-pos))))
