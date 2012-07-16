@@ -12,6 +12,7 @@
 (defconstant +front+ (vec  0.0  0.0 -1.0))
 (defconstant +back+  (vec  0.0  0.0  1.0))
 
+;;; This is fugly, need to get rid of it
 (defun coerce-vec (v)
   (map 'vec (lambda (a) (coerce a 'single-float)) v))
 

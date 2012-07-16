@@ -289,7 +289,7 @@
     ;; TODO: copypasta
     (setf samples-visible (get-query-object-uiv query-id :query-result))))
 
-(defun make-honeycomb (size)
+(defun make-honeycomb (size radius)
   (let ((result (make-array (list size size size)
                             :element-type 'integer
                             :initial-element 0))
@@ -297,14 +297,18 @@
         (total-x 0.0)
         (total-y 0.0)
         (total-z 0.0)
-        (total-mass 0.0))
+        (total-mass 0.0)
+        (center (lattice-to-world (vec* (coerce-vec (list size size size))
+                                        0.5)))
+        (radius-squared (* radius radius)))
     (doarray (i j k) result
-      (let ((p (lattice-to-world (coerce-vec (list i j k)))))
-        (let ((n (* 10 (noise3d-octaves (/ (aref p 0) 10)
-                                        (/ (aref p 1) 10)
-                                        (/ (aref p 2) 10)
-                                        2 0.25))))
-          (when (> 0.3 n -0.3)
+      (let* ((p (lattice-to-world (coerce-vec (list i j k))))
+             (n (* 10 (noise3d-octaves (/ (aref p 0) 10)
+                                       (/ (aref p 1) 10)
+                                       (/ (aref p 2) 10)
+                                       2 0.25))))
+          (when (<= (+ (distance-squared center p) (* n 100))
+                    radius-squared)
             (setf (aref result i j k) (cond ((> -0.2 n) 1)
                                             ((> 0.2 n) 2)
                                             (t 3)))
@@ -312,7 +316,7 @@
             (incf total-x i)
             (incf total-y j)
             (incf total-z k)
-            (incf total-mass)))))
+            (incf total-mass))))
 
     (make-instance 'honeycomb
                    :cell-values result

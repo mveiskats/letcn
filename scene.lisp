@@ -6,7 +6,7 @@
   ())
 
 (defun make-scene ()
-  (setf *honeycomb* (make-honeycomb 64)))
+  (setf *honeycomb* (make-honeycomb 64 20)))
 
 ;; TODO: make a patch for cl-opengl
 (defun get-query-object-uiv (id pname)
