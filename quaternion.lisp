@@ -34,18 +34,20 @@
 
 (defun quat* (v w)
   "Quaternion multiplication"
-  (let ((v0 (aref v 0))
-        (v1 (aref v 1))
-        (v2 (aref v 2))
-        (v3 (aref v 3))
-        (w0 (aref w 0))
-        (w1 (aref w 1))
-        (w2 (aref w 2))
-        (w3 (aref w 3)))
-    (quat (- (* v0 w0) (* v1 w1) (* v2 w2) (* v3 w3))
-          (+ (* v0 w1) (* v1 w0) (* v2 w3) (- (* v3 w2)))
-          (+ (* v0 w2) (- (* v1 w3)) (* v2 w0) (* v3 w1))
-          (+ (* v0 w3) (* v1 w2) (- (* v2 w1)) (* v3 w0)))))
+  (if (eq v +identity-quat+) w
+    (if (eq w +identity-quat+) v
+      (let ((v0 (aref v 0))
+            (v1 (aref v 1))
+            (v2 (aref v 2))
+            (v3 (aref v 3))
+            (w0 (aref w 0))
+            (w1 (aref w 1))
+            (w2 (aref w 2))
+            (w3 (aref w 3)))
+        (quat (- (* v0 w0) (* v1 w1) (* v2 w2) (* v3 w3))
+              (+ (* v0 w1) (* v1 w0) (* v2 w3) (- (* v3 w2)))
+              (+ (* v0 w2) (- (* v1 w3)) (* v2 w0) (* v3 w1))
+              (+ (* v0 w3) (* v1 w2) (- (* v2 w1)) (* v3 w0)))))))
 
 (defun quat-to-matrix (q)
   "Constructs rotation matrix from quaternion"
