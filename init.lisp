@@ -20,7 +20,7 @@
 (defparameter *projection* nil)
 (defparameter *program* nil)
 
-(defparameter *shader-enabled* nil)
+(defparameter *shader-enabled* t)
 
 (defvar *mouse-sensitivity* 0.0007) ;; Pixel to radian ratio
 (defvar *move-speed* 3)
@@ -40,7 +40,7 @@
   (gl:matrix-mode :projection)
   (gl:load-identity)
   (make-scene)
-  (setf *camera* (make-instance 'camera :position (vec 0.0 0.0 20.0)))
+  (setf *camera* (make-instance 'camera :position (vec 30.0 60.0 50.0)))
 
   (make-shader-program))
 
