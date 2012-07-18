@@ -14,13 +14,8 @@
     (%gl::get-query-object-uiv id pname result)
     (cffi:mem-ref result '%gl:uint)))
 
-(defun world-to-local-matrix (obj)
-  (with-slots (position rotation) obj
-    (matrix* (quat-to-matrix rotation)
-             (translate (vec* position -1.0)))))
-
 (defun draw-scene ()
-  (with-transformation (world-to-local-matrix *camera*)
+  (with-transformation (w2l-transform-matrix *camera*)
     (gl:enable :polygon-offset-fill)
     (gl:polygon-offset 1.0 1.0)
     (draw *honeycomb*)
@@ -31,9 +26,7 @@
 
 (defun draw-highlight(position rotation)
   (multiple-value-bind (center face)
-      (let ((front (vec+ position
-                         (quat-rotate (vec 0.0 0.0 -5.0)
-                                      (quat-inverse rotation)))))
+      (let ((front (l2w-transform *camera* (vec 0.0 0.0 -5.0))))
         (find-closest-hit position front))
     (cond (center
             (setf *highlight* (cons center face))
@@ -51,11 +44,13 @@
   (with-slots (rotation) *camera*
     (let ((rot-x (axis-angle-to-quat +up+ dx))
           (rot-y (axis-angle-to-quat +right+ dy)))
-      (setf rotation (normalize-quat (quat* (quat* rot-x rot-y) rotation))))))
+      (setf (w2l-rotation *camera*)
+            (normalize-quat (quat* (quat* rot-x rot-y)
+                                   (w2l-rotation *camera*)))))))
 
 (defun move-camera (direction)
   (with-slots (position rotation) *camera*
-    (let* ((world-dir (quat-rotate direction (quat-inverse rotation)))
+    (let* ((world-dir (l2w-rotate *camera* direction))
            (new-pos (vec+ world-dir position)))
       (multiple-value-bind (p n)
           (sphere-honeycomb-intersection position new-pos 1.5)
