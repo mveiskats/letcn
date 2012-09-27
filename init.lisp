@@ -39,8 +39,6 @@
   (gl:clear-color 0 0 0 0)
   (gl:matrix-mode :projection)
   (gl:load-identity)
-  (make-scene)
-  (setf *camera* (make-instance 'camera :position (vec 30.0 60.0 50.0)))
 
   (make-shader-program))
 
@@ -172,4 +170,6 @@
   (gl:matrix-mode :modelview))
 
 (defun start ()
+  (make-scene)
+  (setf *camera* (make-instance 'camera :position (vec 30.0 60.0 50.0)))
   (glut:display-window (make-instance 'letcn-window)))
