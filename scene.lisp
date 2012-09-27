@@ -68,11 +68,27 @@
     ;; TODO: proper gravity calculations
     (let ((gravity (normalize (vec- (slot-value *honeycomb* 'center-of-mass)
                                     position))))
-      (setf velocity (vec+ velocity (vec* gravity dt))))
-    (let* ((new-pos (vec+ position (vec* velocity dt)))
-           (p (sphere-honeycomb-intersection position new-pos 1.5)))
-       (when p
-         ;; pushback
-         (setf new-pos (vec+ p (vec* (normalize velocity) -0.01))
-               velocity (vec 0.0 0.0 0.0)))
-       (setf position new-pos))))
+      (setf velocity (vec+ velocity (vec* gravity dt)))
+      (let* ((new-pos (vec+ position (vec* velocity dt)))
+             (p (sphere-honeycomb-intersection position new-pos 1.5)))
+        (when p
+          ;; pushback
+          (setf new-pos (vec+ p (vec* (normalize velocity) -0.01))
+                velocity (vec 0.0 0.0 0.0))
+          (stand-straight gravity dt)
+          )
+        (setf position new-pos)))))
+
+(defun stand-straight (down dt)
+  "Orient camera so the specified down vector is on its yz plane"
+  (let* ((local-down (w2l-rotate *camera* down))
+         ;; project gravity on cameras yz plane
+         (projected-down (vec 0.0 (aref local-down 1) (aref local-down 2)))
+         (cos-a (dot-product (normalize local-down)
+                             (normalize projected-down)))
+         (angle (* (acos cos-a)
+                   ;; determine the sign of angle
+                   (if (< (aref local-down 0) 0.0) -1.0 1.0))))
+    (setf (w2l-rotation *camera*)
+          (quat* (axis-angle-to-quat +front+ angle)
+                 (w2l-rotation *camera*)))))
