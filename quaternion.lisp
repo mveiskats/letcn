@@ -73,11 +73,13 @@
 (declaim (ftype (function (vec single-float) quat) axis-angle-to-quat))
 (defun axis-angle-to-quat (axis angle)
   "Constructs quaternion from axis unit vector and angle"
-  (let ((sa (sin angle)))
-    (quat (cos angle)
-          (* (aref axis 0) sa)
-          (* (aref axis 1) sa)
-          (* (aref axis 2) sa))))
+  (let* ((half-angle (* angle 0.5))
+         (sin-a (sin half-angle))
+         (cos-a (cos half-angle)))
+    (quat cos-a
+          (* (aref axis 0) sin-a)
+          (* (aref axis 1) sin-a)
+          (* (aref axis 2) sin-a))))
 
 (defun quat-inverse (q)
   "Creates inverse of unit quaternion"
